@@ -1,0 +1,954 @@
+{
+  "A 1247-10": {
+    "failed_at": "2026-07-16T21:19:38",
+    "ok": false
+  },
+  "A 1836+17": {
+    "failed_at": "2026-07-17T21:54:11",
+    "ok": false
+  },
+  "A 1940+50": {
+    "failed_at": "2026-07-16T12:38:29",
+    "ok": false
+  },
+  "IC 10": {
+    "dec_deg": 59.30379111,
+    "name_used": "IC 10",
+    "ok": true,
+    "ra_deg": 5.07223
+  },
+  "IC 1392": {
+    "dec_deg": 35.39829986,
+    "name_used": "IC 1392",
+    "ok": true,
+    "ra_deg": 323.8862015
+  },
+  "IC 284": {
+    "dec_deg": 42.3719475,
+    "name_used": "IC 284",
+    "ok": true,
+    "ra_deg": 46.54139772
+  },
+  "IC 310": {
+    "dec_deg": 41.32489322,
+    "name_used": "IC 310",
+    "ok": true,
+    "ra_deg": 49.17907815
+  },
+  "IC 3115": {
+    "dec_deg": 6.65418155,
+    "name_used": "IC 3115",
+    "ok": true,
+    "ra_deg": 184.49959921
+  },
+  "IC 3258": {
+    "dec_deg": 12.47831983,
+    "name_used": "IC 3258",
+    "ok": true,
+    "ra_deg": 185.93532888
+  },
+  "IC 3322A": {
+    "dec_deg": 7.21670833,
+    "name_used": "IC 3322A",
+    "ok": true,
+    "ra_deg": 186.42764167
+  },
+  "IC 3521": {
+    "dec_deg": 7.1601893,
+    "name_used": "IC 3521",
+    "ok": true,
+    "ra_deg": 188.66463497
+  },
+  "IC 3576": {
+    "dec_deg": 6.620887,
+    "name_used": "IC 3576",
+    "ok": true,
+    "ra_deg": 189.15698
+  },
+  "IC 3583": {
+    "dec_deg": 13.25914722,
+    "name_used": "IC 3583",
+    "ok": true,
+    "ra_deg": 189.18149167
+  },
+  "NGC 1160": {
+    "dec_deg": 44.95542222,
+    "name_used": "NGC 1160",
+    "ok": true,
+    "ra_deg": 45.30524583
+  },
+  "NGC 1161": {
+    "dec_deg": 44.8974097,
+    "name_used": "NGC 1161",
+    "ok": true,
+    "ra_deg": 45.30904822
+  },
+  "NGC 1175": {
+    "dec_deg": 42.33938333,
+    "name_used": "NGC 1175",
+    "ok": true,
+    "ra_deg": 46.13477173
+  },
+  "NGC 1250": {
+    "dec_deg": 41.35537809,
+    "name_used": "NGC 1250",
+    "ok": true,
+    "ra_deg": 48.83791229
+  },
+  "NGC 1265": {
+    "dec_deg": 41.85776111,
+    "name_used": "NGC 1265",
+    "ok": true,
+    "ra_deg": 49.56530833
+  },
+  "NGC 1272": {
+    "dec_deg": 41.49059167,
+    "name_used": "NGC 1272",
+    "ok": true,
+    "ra_deg": 49.83875
+  },
+  "NGC 1275": {
+    "dec_deg": 41.5116969,
+    "name_used": "NGC 1275",
+    "ok": true,
+    "ra_deg": 49.95066663
+  },
+  "NGC 1278": {
+    "dec_deg": 41.56340933,
+    "name_used": "NGC 1278",
+    "ok": true,
+    "ra_deg": 49.97554604
+  },
+  "NGC 1282": {
+    "dec_deg": 41.36697324,
+    "name_used": "NGC 1282",
+    "ok": true,
+    "ra_deg": 50.05043443
+  },
+  "NGC 3185": {
+    "dec_deg": 21.68821495,
+    "name_used": "NGC 3185",
+    "ok": true,
+    "ra_deg": 154.4106877
+  },
+  "NGC 3187": {
+    "dec_deg": 21.87332891,
+    "name_used": "NGC 3187",
+    "ok": true,
+    "ra_deg": 154.44945982
+  },
+  "NGC 3190": {
+    "dec_deg": 21.83193889,
+    "name_used": "NGC 3190",
+    "ok": true,
+    "ra_deg": 154.5235125
+  },
+  "NGC 3193": {
+    "dec_deg": 21.89397778,
+    "name_used": "NGC 3193",
+    "ok": true,
+    "ra_deg": 154.60368333
+  },
+  "NGC 3222": {
+    "dec_deg": 19.88725782,
+    "name_used": "NGC 3222",
+    "ok": true,
+    "ra_deg": 155.6436667
+  },
+  "NGC 3226": {
+    "dec_deg": 19.89852082,
+    "name_used": "NGC 3226",
+    "ok": true,
+    "ra_deg": 155.8625267
+  },
+  "NGC 3227": {
+    "dec_deg": 19.86507839,
+    "name_used": "NGC 3227",
+    "ok": true,
+    "ra_deg": 155.87740215
+  },
+  "NGC 3379": {
+    "dec_deg": 12.58163056,
+    "name_used": "NGC 3379",
+    "ok": true,
+    "ra_deg": 161.95666667
+  },
+  "NGC 3384": {
+    "dec_deg": 12.62926977,
+    "name_used": "NGC 3384",
+    "ok": true,
+    "ra_deg": 162.07035649
+  },
+  "NGC 3389": {
+    "dec_deg": 12.53323878,
+    "name_used": "NGC 3389",
+    "ok": true,
+    "ra_deg": 162.11628541
+  },
+  "NGC 3605": {
+    "dec_deg": 18.01716046,
+    "name_used": "NGC 3605",
+    "ok": true,
+    "ra_deg": 169.19412338
+  },
+  "NGC 3607": {
+    "dec_deg": 18.05180889,
+    "name_used": "NGC 3607",
+    "ok": true,
+    "ra_deg": 169.22773696
+  },
+  "NGC 3608": {
+    "dec_deg": 18.14853056,
+    "name_used": "NGC 3608",
+    "ok": true,
+    "ra_deg": 169.24569583
+  },
+  "NGC 3991": {
+    "failed_at": "2026-07-17T23:50:32",
+    "ok": false
+  },
+  "NGC 3994": {
+    "dec_deg": 32.27762421,
+    "name_used": "NGC 3994",
+    "ok": true,
+    "ra_deg": 179.40360957
+  },
+  "NGC 3995": {
+    "dec_deg": 32.29406697,
+    "name_used": "NGC 3995",
+    "ok": true,
+    "ra_deg": 179.43374079
+  },
+  "NGC 4193": {
+    "dec_deg": 13.17290556,
+    "name_used": "NGC 4193",
+    "ok": true,
+    "ra_deg": 183.47328333
+  },
+  "NGC 4206": {
+    "dec_deg": 13.02400282,
+    "name_used": "NGC 4206",
+    "ok": true,
+    "ra_deg": 183.82009864
+  },
+  "NGC 4216": {
+    "dec_deg": 13.1494,
+    "name_used": "NGC 4216",
+    "ok": true,
+    "ra_deg": 183.97685
+  },
+  "NGC 4224": {
+    "dec_deg": 7.46209101,
+    "name_used": "NGC 4224",
+    "ok": true,
+    "ra_deg": 184.14077351
+  },
+  "NGC 4235": {
+    "dec_deg": 7.19157594,
+    "name_used": "NGC 4235",
+    "ok": true,
+    "ra_deg": 184.29117458
+  },
+  "NGC 4241": {
+    "dec_deg": 6.65418155,
+    "name_used": "NGC 4241",
+    "ok": true,
+    "ra_deg": 184.49959921
+  },
+  "NGC 4246": {
+    "dec_deg": 7.18592434,
+    "name_used": "NGC 4246",
+    "ok": true,
+    "ra_deg": 184.49216583
+  },
+  "NGC 4261": {
+    "dec_deg": 5.82491667,
+    "name_used": "NGC 4261",
+    "ok": true,
+    "ra_deg": 184.8467336
+  },
+  "NGC 4264": {
+    "dec_deg": 5.8467671,
+    "name_used": "NGC 4264",
+    "ok": true,
+    "ra_deg": 184.89899412
+  },
+  "NGC 4268": {
+    "dec_deg": 5.28376571,
+    "name_used": "NGC 4268",
+    "ok": true,
+    "ra_deg": 184.94671793
+  },
+  "NGC 4270": {
+    "dec_deg": 5.46344304,
+    "name_used": "NGC 4270",
+    "ok": true,
+    "ra_deg": 184.95613119
+  },
+  "NGC 4273": {
+    "dec_deg": 5.34336667,
+    "name_used": "NGC 4273",
+    "ok": true,
+    "ra_deg": 184.98359583
+  },
+  "NGC 4277": {
+    "dec_deg": 5.34135551,
+    "name_used": "NGC 4277",
+    "ok": true,
+    "ra_deg": 185.01549484
+  },
+  "NGC 4281": {
+    "dec_deg": 5.38644132,
+    "name_used": "NGC 4281",
+    "ok": true,
+    "ra_deg": 185.08968601
+  },
+  "NGC 4292": {
+    "dec_deg": 4.59571057,
+    "name_used": "NGC 4292",
+    "ok": true,
+    "ra_deg": 185.31857508
+  },
+  "NGC 4294": {
+    "dec_deg": 11.51110833,
+    "name_used": "NGC 4294",
+    "ok": true,
+    "ra_deg": 185.3241125
+  },
+  "NGC 4299": {
+    "dec_deg": 11.499929,
+    "name_used": "NGC 4299",
+    "ok": true,
+    "ra_deg": 185.418951
+  },
+  "NGC 4303A": {
+    "dec_deg": 4.56630278,
+    "name_used": "NGC 4303A",
+    "ok": true,
+    "ra_deg": 185.613525
+  },
+  "NGC 4313": {
+    "dec_deg": 11.80087809,
+    "name_used": "NGC 4313",
+    "ok": true,
+    "ra_deg": 185.66048014
+  },
+  "NGC 4316": {
+    "dec_deg": 9.33281111,
+    "name_used": "NGC 4316",
+    "ok": true,
+    "ra_deg": 185.67592083
+  },
+  "NGC 4324": {
+    "dec_deg": 5.25034146,
+    "name_used": "NGC 4324",
+    "ok": true,
+    "ra_deg": 185.77572812
+  },
+  "NGC 4330": {
+    "dec_deg": 11.36798056,
+    "name_used": "NGC 4330",
+    "ok": true,
+    "ra_deg": 185.82187083
+  },
+  "NGC 4351": {
+    "dec_deg": 12.205025,
+    "name_used": "NGC 4351",
+    "ok": true,
+    "ra_deg": 186.0065
+  },
+  "NGC 4352": {
+    "dec_deg": 11.21807946,
+    "name_used": "NGC 4352",
+    "ok": true,
+    "ra_deg": 186.02092519
+  },
+  "NGC 4360": {
+    "dec_deg": 9.29278085,
+    "name_used": "NGC 4360",
+    "ok": true,
+    "ra_deg": 186.09039267
+  },
+  "NGC 4365": {
+    "dec_deg": 7.31751944,
+    "name_used": "NGC 4365",
+    "ok": true,
+    "ra_deg": 186.11761667
+  },
+  "NGC 4370": {
+    "dec_deg": 7.44456667,
+    "name_used": "NGC 4370",
+    "ok": true,
+    "ra_deg": 186.22888333
+  },
+  "NGC 4371": {
+    "dec_deg": 11.70420674,
+    "name_used": "NGC 4371",
+    "ok": true,
+    "ra_deg": 186.23097232
+  },
+  "NGC 4374": {
+    "dec_deg": 12.88698314,
+    "name_used": "NGC 4374",
+    "ok": true,
+    "ra_deg": 186.26559721
+  },
+  "NGC 4387": {
+    "dec_deg": 12.81050128,
+    "name_used": "NGC 4387",
+    "ok": true,
+    "ra_deg": 186.42365354
+  },
+  "NGC 4388": {
+    "dec_deg": 12.66206944,
+    "name_used": "NGC 4388",
+    "ok": true,
+    "ra_deg": 186.44508333
+  },
+  "NGC 4406": {
+    "dec_deg": 12.94596944,
+    "name_used": "NGC 4406",
+    "ok": true,
+    "ra_deg": 186.549225
+  },
+  "NGC 4410A": {
+    "dec_deg": 9.01986126,
+    "name_used": "NGC 4410A",
+    "ok": true,
+    "ra_deg": 186.61789444
+  },
+  "NGC 4411A": {
+    "dec_deg": 8.872245,
+    "name_used": "NGC 4411A",
+    "ok": true,
+    "ra_deg": 186.624412
+  },
+  "NGC 4413": {
+    "dec_deg": 12.61067402,
+    "name_used": "NGC 4413",
+    "ok": true,
+    "ra_deg": 186.63429641
+  },
+  "NGC 4415": {
+    "dec_deg": 8.4357209,
+    "name_used": "NGC 4415",
+    "ok": true,
+    "ra_deg": 186.66868438
+  },
+  "NGC 4416": {
+    "dec_deg": 7.91901389,
+    "name_used": "NGC 4416",
+    "ok": true,
+    "ra_deg": 186.69468696
+  },
+  "NGC 4417": {
+    "dec_deg": 9.58426505,
+    "name_used": "NGC 4417",
+    "ok": true,
+    "ra_deg": 186.71086851
+  },
+  "NGC 4424": {
+    "dec_deg": 9.42064735,
+    "name_used": "NGC 4424",
+    "ok": true,
+    "ra_deg": 186.79822551
+  },
+  "NGC 4429": {
+    "dec_deg": 11.10766355,
+    "name_used": "NGC 4429",
+    "ok": true,
+    "ra_deg": 186.86043333
+  },
+  "NGC 4431": {
+    "dec_deg": 12.29028932,
+    "name_used": "NGC 4431",
+    "ok": true,
+    "ra_deg": 186.86409063
+  },
+  "NGC 4434": {
+    "dec_deg": 8.1543445,
+    "name_used": "NGC 4434",
+    "ok": true,
+    "ra_deg": 186.90282153
+  },
+  "NGC 4435": {
+    "dec_deg": 13.07902222,
+    "name_used": "NGC 4435",
+    "ok": true,
+    "ra_deg": 186.9187625
+  },
+  "NGC 4436": {
+    "dec_deg": 12.31588708,
+    "name_used": "NGC 4436",
+    "ok": true,
+    "ra_deg": 186.92180989
+  },
+  "NGC 4438": {
+    "dec_deg": 13.0088078,
+    "name_used": "NGC 4438",
+    "ok": true,
+    "ra_deg": 186.94029396
+  },
+  "NGC 4440": {
+    "dec_deg": 12.29327471,
+    "name_used": "NGC 4440",
+    "ok": true,
+    "ra_deg": 186.97319289
+  },
+  "NGC 4442": {
+    "dec_deg": 9.80372959,
+    "name_used": "NGC 4442",
+    "ok": true,
+    "ra_deg": 187.01617305
+  },
+  "NGC 4445": {
+    "dec_deg": 9.43640039,
+    "name_used": "NGC 4445",
+    "ok": true,
+    "ra_deg": 187.06656907
+  },
+  "NGC 4451": {
+    "dec_deg": 9.258925,
+    "name_used": "NGC 4451",
+    "ok": true,
+    "ra_deg": 187.16899167
+  },
+  "NGC 4452": {
+    "dec_deg": 11.75505606,
+    "name_used": "NGC 4452",
+    "ok": true,
+    "ra_deg": 187.18040848
+  },
+  "NGC 4457": {
+    "dec_deg": 3.57061543,
+    "name_used": "NGC 4457",
+    "ok": true,
+    "ra_deg": 187.24593853
+  },
+  "NGC 4458": {
+    "dec_deg": 13.2419296,
+    "name_used": "NGC 4458",
+    "ok": true,
+    "ra_deg": 187.23983914
+  },
+  "NGC 4461": {
+    "dec_deg": 13.18385556,
+    "name_used": "NGC 4461",
+    "ok": true,
+    "ra_deg": 187.26254167
+  },
+  "NGC 4464": {
+    "dec_deg": 8.15661322,
+    "name_used": "NGC 4464",
+    "ok": true,
+    "ra_deg": 187.33872408
+  },
+  "NGC 4470": {
+    "dec_deg": 7.82424567,
+    "name_used": "NGC 4470",
+    "ok": true,
+    "ra_deg": 187.40752789
+  },
+  "NGC 4472": {
+    "dec_deg": 8.0004,
+    "name_used": "NGC 4472",
+    "ok": true,
+    "ra_deg": 187.4449
+  },
+  "NGC 4476": {
+    "dec_deg": 12.34869228,
+    "name_used": "NGC 4476",
+    "ok": true,
+    "ra_deg": 187.49615541
+  },
+  "NGC 4478": {
+    "dec_deg": 12.32855294,
+    "name_used": "NGC 4478",
+    "ok": true,
+    "ra_deg": 187.57256667
+  },
+  "NGC 4480": {
+    "dec_deg": 4.24657635,
+    "name_used": "NGC 4480",
+    "ok": true,
+    "ra_deg": 187.6116224
+  },
+  "NGC 4483": {
+    "dec_deg": 9.01566417,
+    "name_used": "NGC 4483",
+    "ok": true,
+    "ra_deg": 187.66935117
+  },
+  "NGC 4486": {
+    "dec_deg": 12.39112325,
+    "name_used": "NGC 4486",
+    "ok": true,
+    "ra_deg": 187.70593077
+  },
+  "NGC 4488": {
+    "dec_deg": 8.35999946,
+    "name_used": "NGC 4488",
+    "ok": true,
+    "ra_deg": 187.7140532
+  },
+  "NGC 4491": {
+    "dec_deg": 11.48352729,
+    "name_used": "NGC 4491",
+    "ok": true,
+    "ra_deg": 187.73796334
+  },
+  "NGC 4492": {
+    "dec_deg": 8.07789562,
+    "name_used": "NGC 4492",
+    "ok": true,
+    "ra_deg": 187.74879148
+  },
+  "NGC 4496A": {
+    "dec_deg": 3.93934482,
+    "name_used": "NGC 4496A",
+    "ok": true,
+    "ra_deg": 187.913426
+  },
+  "NGC 4497": {
+    "dec_deg": 11.62471297,
+    "name_used": "NGC 4497",
+    "ok": true,
+    "ra_deg": 187.88550726
+  },
+  "NGC 4503": {
+    "dec_deg": 11.1763778,
+    "name_used": "NGC 4503",
+    "ok": true,
+    "ra_deg": 188.02596874
+  },
+  "NGC 4519": {
+    "dec_deg": 8.65446111,
+    "name_used": "NGC 4519",
+    "ok": true,
+    "ra_deg": 188.37615833
+  },
+  "NGC 4522": {
+    "dec_deg": 9.17487222,
+    "name_used": "NGC 4522",
+    "ok": true,
+    "ra_deg": 188.4152375
+  },
+  "NGC 4528": {
+    "dec_deg": 11.3212578,
+    "name_used": "NGC 4528",
+    "ok": true,
+    "ra_deg": 188.52528572
+  },
+  "NGC 4535": {
+    "dec_deg": 8.19775236,
+    "name_used": "NGC 4535",
+    "ok": true,
+    "ra_deg": 188.58476813
+  },
+  "NGC 4550": {
+    "dec_deg": 12.22081144,
+    "name_used": "NGC 4550",
+    "ok": true,
+    "ra_deg": 188.877464
+  },
+  "NGC 4551": {
+    "dec_deg": 12.26396794,
+    "name_used": "NGC 4551",
+    "ok": true,
+    "ra_deg": 188.90814279
+  },
+  "NGC 4552": {
+    "dec_deg": 12.55634191,
+    "name_used": "NGC 4552",
+    "ok": true,
+    "ra_deg": 188.91586389
+  },
+  "NGC 4564": {
+    "dec_deg": 11.43922346,
+    "name_used": "NGC 4564",
+    "ok": true,
+    "ra_deg": 189.11244563
+  },
+  "NGC 4567": {
+    "dec_deg": 11.25797674,
+    "name_used": "NGC 4567",
+    "ok": true,
+    "ra_deg": 189.13624164
+  },
+  "NGC 4568": {
+    "dec_deg": 11.23863056,
+    "name_used": "NGC 4568",
+    "ok": true,
+    "ra_deg": 189.14288333
+  },
+  "NGC 4569": {
+    "dec_deg": 13.16292328,
+    "name_used": "NGC 4569",
+    "ok": true,
+    "ra_deg": 189.2075041
+  },
+  "NGC 4570": {
+    "dec_deg": 7.24658255,
+    "name_used": "NGC 4570",
+    "ok": true,
+    "ra_deg": 189.22242843
+  },
+  "NGC 4584": {
+    "dec_deg": 13.10986232,
+    "name_used": "NGC 4584",
+    "ok": true,
+    "ra_deg": 189.57447442
+  },
+  "NGC 4606": {
+    "dec_deg": 11.91218611,
+    "name_used": "NGC 4606",
+    "ok": true,
+    "ra_deg": 190.23982083
+  },
+  "NGC 4607": {
+    "dec_deg": 11.88662778,
+    "name_used": "NGC 4607",
+    "ok": true,
+    "ra_deg": 190.30169583
+  },
+  "NGC 4620": {
+    "dec_deg": 12.9428458,
+    "name_used": "NGC 4620",
+    "ok": true,
+    "ra_deg": 190.49728458
+  },
+  "NGC 4621": {
+    "dec_deg": 11.64691931,
+    "name_used": "NGC 4621",
+    "ok": true,
+    "ra_deg": 190.50940891
+  },
+  "NGC 4638": {
+    "dec_deg": 11.44249193,
+    "name_used": "NGC 4638",
+    "ok": true,
+    "ra_deg": 190.69759968
+  },
+  "NGC 4639": {
+    "dec_deg": 13.25741838,
+    "name_used": "NGC 4639",
+    "ok": true,
+    "ra_deg": 190.71824375
+  },
+  "NGC 4647": {
+    "dec_deg": 11.58246944,
+    "name_used": "NGC 4647",
+    "ok": true,
+    "ra_deg": 190.88559167
+  },
+  "NGC 4649": {
+    "dec_deg": 11.55269116,
+    "name_used": "NGC 4649",
+    "ok": true,
+    "ra_deg": 190.9165451
+  },
+  "NGC 4653": {
+    "dec_deg": -0.56127107,
+    "name_used": "NGC 4653",
+    "ok": true,
+    "ra_deg": 190.96216877
+  },
+  "NGC 4654": {
+    "dec_deg": 13.12635,
+    "name_used": "NGC 4654",
+    "ok": true,
+    "ra_deg": 190.98599167
+  },
+  "NGC 4660": {
+    "dec_deg": 11.19048309,
+    "name_used": "NGC 4660",
+    "ok": true,
+    "ra_deg": 191.13325584
+  },
+  "NGC 4666": {
+    "dec_deg": -0.46191111,
+    "name_used": "NGC 4666",
+    "ok": true,
+    "ra_deg": 191.28615
+  },
+  "NGC 4668": {
+    "dec_deg": -0.53398889,
+    "name_used": "NGC 4668",
+    "ok": true,
+    "ra_deg": 191.3830875
+  },
+  "NGC 4733": {
+    "dec_deg": 10.91207961,
+    "name_used": "NGC 4733",
+    "ok": true,
+    "ra_deg": 192.7782151
+  },
+  "NGC 4742": {
+    "dec_deg": -10.45477684,
+    "name_used": "NGC 4742",
+    "ok": true,
+    "ra_deg": 192.95017366
+  },
+  "NGC 4754": {
+    "dec_deg": 11.31366111,
+    "name_used": "NGC 4754",
+    "ok": true,
+    "ra_deg": 193.07317917
+  },
+  "NGC 4760": {
+    "dec_deg": -10.49422263,
+    "name_used": "NGC 4760",
+    "ok": true,
+    "ra_deg": 193.28012507
+  },
+  "NGC 4762": {
+    "dec_deg": 11.2308,
+    "name_used": "NGC 4762",
+    "ok": true,
+    "ra_deg": 193.2335375
+  },
+  "NGC 5035": {
+    "dec_deg": -16.49262981,
+    "name_used": "NGC 5035",
+    "ok": true,
+    "ra_deg": 198.70514721
+  },
+  "NGC 5037": {
+    "dec_deg": -16.59032222,
+    "name_used": "NGC 5037",
+    "ok": true,
+    "ra_deg": 198.74742083
+  },
+  "NGC 5049": {
+    "dec_deg": -16.39711868,
+    "name_used": "NGC 5049",
+    "ok": true,
+    "ra_deg": 198.99709318
+  },
+  "NGC 5054": {
+    "dec_deg": -16.63485,
+    "name_used": "NGC 5054",
+    "ok": true,
+    "ra_deg": 199.2437
+  },
+  "NGC 5560": {
+    "dec_deg": 3.99265278,
+    "name_used": "NGC 5560",
+    "ok": true,
+    "ra_deg": 215.0187375
+  },
+  "NGC 5566": {
+    "dec_deg": 3.93359,
+    "name_used": "NGC 5566",
+    "ok": true,
+    "ra_deg": 215.083115
+  },
+  "NGC 5574": {
+    "dec_deg": 3.2379979,
+    "name_used": "NGC 5574",
+    "ok": true,
+    "ra_deg": 215.23320373
+  },
+  "NGC 5576": {
+    "dec_deg": 3.27105,
+    "name_used": "NGC 5576",
+    "ok": true,
+    "ra_deg": 215.26537917
+  },
+  "NGC 5770": {
+    "dec_deg": 3.95972917,
+    "name_used": "NGC 5770",
+    "ok": true,
+    "ra_deg": 223.31255369
+  },
+  "NGC 5774": {
+    "dec_deg": 3.582487,
+    "name_used": "NGC 5774",
+    "ok": true,
+    "ra_deg": 223.426926
+  },
+  "NGC 5775": {
+    "dec_deg": 3.54447222,
+    "name_used": "NGC 5775",
+    "ok": true,
+    "ra_deg": 223.49022083
+  },
+  "NGC 5831": {
+    "dec_deg": 1.21991822,
+    "name_used": "NGC 5831",
+    "ok": true,
+    "ra_deg": 226.02916775
+  },
+  "NGC 5839": {
+    "dec_deg": 1.63480133,
+    "name_used": "NGC 5839",
+    "ok": true,
+    "ra_deg": 226.36453869
+  },
+  "NGC 5845": {
+    "dec_deg": 1.6338069,
+    "name_used": "NGC 5845",
+    "ok": true,
+    "ra_deg": 226.50325968
+  },
+  "NGC 5846": {
+    "dec_deg": 1.60563611,
+    "name_used": "NGC 5846",
+    "ok": true,
+    "ra_deg": 226.6218875
+  },
+  "NGC 5850": {
+    "dec_deg": 1.54430924,
+    "name_used": "NGC 5850",
+    "ok": true,
+    "ra_deg": 226.78201172
+  },
+  "NGC 5981": {
+    "dec_deg": 59.39181363,
+    "name_used": "NGC 5981",
+    "ok": true,
+    "ra_deg": 234.47292273
+  },
+  "NGC 5982": {
+    "dec_deg": 59.35589167,
+    "name_used": "NGC 5982",
+    "ok": true,
+    "ra_deg": 234.66574167
+  },
+  "NGC 5985": {
+    "dec_deg": 59.33200469,
+    "name_used": "NGC 5985",
+    "ok": true,
+    "ra_deg": 234.90439406
+  },
+  "NGC 6555": {
+    "dec_deg": 17.60489722,
+    "name_used": "NGC 6555",
+    "ok": true,
+    "ra_deg": 271.95486667
+  },
+  "NGC 6577": {
+    "dec_deg": 21.46345624,
+    "name_used": "NGC 6577",
+    "ok": true,
+    "ra_deg": 273.0051246
+  },
+  "NGC 6658": {
+    "dec_deg": 22.88826045,
+    "name_used": "NGC 6658",
+    "ok": true,
+    "ra_deg": 278.48180294
+  },
+  "NGC 6661": {
+    "dec_deg": 22.90965767,
+    "name_used": "NGC 6661",
+    "ok": true,
+    "ra_deg": 278.65276065
+  },
+  "NGC 6674": {
+    "dec_deg": 25.37510833,
+    "name_used": "NGC 6674",
+    "ok": true,
+    "ra_deg": 279.64120417
+  }
+}

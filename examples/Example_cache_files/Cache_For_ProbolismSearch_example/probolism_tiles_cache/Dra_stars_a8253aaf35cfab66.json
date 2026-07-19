@@ -1,0 +1,17 @@
+{
+  "bbox": {
+    "dec_max": 86.5,
+    "dec_min": 47.5,
+    "ra_end": 314.0,
+    "ra_length": 174.0,
+    "ra_start": 140.0
+  },
+  "cache_version": 1,
+  "constellation_filter": "Dra",
+  "kind": "stars",
+  "query_tile_size_deg": 5.0,
+  "region_abbr": "Dra",
+  "region_mode": "constellation",
+  "region_name": "Draco",
+  "star_mag_limit": 12.0
+}

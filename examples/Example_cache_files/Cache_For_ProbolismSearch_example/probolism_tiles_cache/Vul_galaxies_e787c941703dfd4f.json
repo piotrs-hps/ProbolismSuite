@@ -1,0 +1,20 @@
+{
+  "bbox": {
+    "dec_max": 29.5,
+    "dec_min": 18.5,
+    "ra_end": 323.0,
+    "ra_length": 39.0,
+    "ra_start": 284.0
+  },
+  "cache_version": 1,
+  "constellation_filter": "Vul",
+  "kind": "galaxies",
+  "query_tile_size_deg": 5.0,
+  "region_abbr": "Vul",
+  "region_mode": "constellation",
+  "region_name": "Vulpecula",
+  "vizier_catalogs_to_try": [
+    "VII/155/rc3",
+    "VII/155"
+  ]
+}

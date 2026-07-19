@@ -1,0 +1,20 @@
+{
+  "bbox": {
+    "dec_max": 33.5,
+    "dec_min": -7.5,
+    "ra_end": 180.0,
+    "ra_length": 40.0,
+    "ra_start": 140.0
+  },
+  "cache_version": 1,
+  "constellation_filter": "Leo",
+  "kind": "galaxies",
+  "query_tile_size_deg": 5.0,
+  "region_abbr": "Leo",
+  "region_mode": "constellation",
+  "region_name": "Leo",
+  "vizier_catalogs_to_try": [
+    "VII/155/rc3",
+    "VII/155"
+  ]
+}
