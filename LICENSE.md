@@ -11,9 +11,9 @@ The original authorship notice and license terms must be preserved.
 Commercial use requires a separate written commercial license.
 Please contact: grazyk@wp.pl
 
-Private and hobby use: free
-Educational use: free
-Nonprofit astronomical use: free
-Commercial internal use: paid license
-Inclusion in a commercial product: separately negotiated license
-Paid consulting or observatory services: paid license
+Private and hobby use: free;
+Educational use: free;
+Nonprofit astronomical use: free;
+Commercial internal use: paid license;
+Inclusion in a commercial product: separately negotiated license;
+Paid consulting or observatory services: paid license.
