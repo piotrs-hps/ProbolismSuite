@@ -1,4 +1,4 @@
-# Probolizmy_v1.51.py
+# Probolizmy_v1.52.py
 # pip install numpy pandas astropy astroquery
 
 import math
@@ -2758,17 +2758,17 @@ def find_galaxy_size_columns(df: pd.DataFrame):
     result = []
     for col in df.columns:
         c = col.lower()
-        if c.startswith("e_") or "err" in c or "sigma" in c or "error" in c:
+        if c.startswith("e_") or c.startswith("u_") or c.startswith("q_") or "err" in c or "sigma" in c or "error" in c:
             continue
         if "pa" == c or "posang" in c or "mag" in c:
             continue
         if "ratio" in c or "axisratio" in c or "b/a" in c:
             continue
-        if c in ["logd25", "logd", "logdiam", "logdiam25", "log_d25"] or ("log" in c and ("d25" in c or "diam" in c)):
+        if c in ["d25", "logd25", "logd", "logdiam", "logdiam25", "log_d25"] or ("log" in c and ("d25" in c or "diam" in c)):
             result.append((col, "rc3_log_d25"))
             continue
         looks_like_diameter = (
-            "d25" in c or "diam" in c or "diameter" in c or
+            "diam" in c or "diameter" in c or
             "major" in c or "maj" in c or c in ["d", "a", "d1", "d2"]
         )
         if not looks_like_diameter:
@@ -2782,25 +2782,51 @@ def find_galaxy_size_columns(df: pd.DataFrame):
     return result
 
 
-def galaxy_size_arcmin_from_row(row, size_columns):
+def galaxy_size_arcmin_to_rc3_d25_log(size_arcmin):
+    value = pd.to_numeric(size_arcmin, errors="coerce")
+    if pd.isna(value) or float(value) <= 0:
+        return -np.inf
+    return math.log10(float(value) / 0.1)
+
+
+def galaxy_size_arcmin_from_rc3_d25_log(d25_log):
+    value = pd.to_numeric(d25_log, errors="coerce")
+    if pd.isna(value):
+        return np.nan
+    size_arcmin = 0.1 * (10 ** float(value))
+    if np.isfinite(size_arcmin) and size_arcmin > 0:
+        return size_arcmin
+    return np.nan
+
+
+def galaxy_size_values_from_row(row, size_columns):
     sizes = []
     for col, mode in size_columns:
         value = pd.to_numeric(row.get(col), errors="coerce")
         if pd.isna(value):
             continue
         if mode == "rc3_log_d25":
-            size_arcmin = 0.1 * (10 ** float(value))
+            size_d25_log = float(value)
+            size_arcmin = galaxy_size_arcmin_from_rc3_d25_log(size_d25_log)
         elif mode == "arcsec":
             size_arcmin = float(value) / 60.0
+            size_d25_log = galaxy_size_arcmin_to_rc3_d25_log(size_arcmin)
         elif mode == "deg":
             size_arcmin = float(value) * 60.0
+            size_d25_log = galaxy_size_arcmin_to_rc3_d25_log(size_arcmin)
         else:
             size_arcmin = float(value)
-        if np.isfinite(size_arcmin) and size_arcmin > 0:
-            sizes.append(size_arcmin)
+            size_d25_log = galaxy_size_arcmin_to_rc3_d25_log(size_arcmin)
+        if np.isfinite(size_arcmin) and size_arcmin > 0 and np.isfinite(size_d25_log):
+            sizes.append((size_arcmin, size_d25_log))
     if not sizes:
-        return np.nan
-    return max(sizes)
+        return np.nan, np.nan
+    return max(sizes, key=lambda item: item[0])
+
+
+def galaxy_size_arcmin_from_row(row, size_columns):
+    size_arcmin, _size_d25_log = galaxy_size_values_from_row(row, size_columns)
+    return size_arcmin
 
 
 def deduplicate_by_position(df: pd.DataFrame, tolerance_arcsec=5.0):
@@ -3090,7 +3116,9 @@ def parse_vizier_rc3_tables(tables, catalog):
         temp["ra_deg"] = safe_numeric(df[ra_col])
         temp["dec_deg"] = safe_numeric(df[dec_col])
         temp["mag"] = safe_numeric(df[mag_col])
-        temp["size_arcmin"] = df.apply(lambda row: galaxy_size_arcmin_from_row(row, size_columns), axis=1)
+        size_values = df.apply(lambda row: galaxy_size_values_from_row(row, size_columns), axis=1)
+        temp["size_arcmin"] = [item[0] for item in size_values]
+        temp["size_d25_log"] = [item[1] for item in size_values]
         temp["source_catalog"] = catalog
         name_col = None
         for candidate in ["Name", "name", "PGC", "NGC", "IC", "Object"]:
@@ -3098,7 +3126,7 @@ def parse_vizier_rc3_tables(tables, catalog):
                 name_col = candidate
                 break
         temp["name"] = df[name_col].astype(str) if name_col is not None else ""
-        temp = temp.dropna(subset=["ra_deg", "dec_deg", "mag", "size_arcmin"])
+        temp = temp.dropna(subset=["ra_deg", "dec_deg", "mag", "size_arcmin", "size_d25_log"])
         frames.append(temp)
     return frames
 
@@ -3156,25 +3184,33 @@ def fetch_vizier_rc3_galaxies(bbox, constellation_abbr, selected_region=None, ca
             status_callback
         )
 
-    for column in ["ra_deg", "dec_deg", "mag", "size_arcmin"]:
+    for column in ["ra_deg", "dec_deg", "mag", "size_arcmin", "size_d25_log"]:
         if column in df_all.columns:
             df_all[column] = safe_numeric(df_all[column])
 
+    if "size_d25_log" not in df_all.columns:
+        df_all["size_d25_log"] = safe_numeric(df_all["size_arcmin"])
+        df_all["size_arcmin"] = df_all["size_d25_log"].apply(galaxy_size_arcmin_from_rc3_d25_log)
+
+    galaxy_min_size_d25_log = galaxy_size_arcmin_to_rc3_d25_log(GALAXY_MIN_SIZE_ARCMIN)
+
     df_all = df_all[df_all["mag"] <= GALAXY_MAG_LIMIT].copy()
-    df_all = df_all.dropna(subset=["size_arcmin"]).copy()
-    df_all = df_all[df_all["size_arcmin"] > GALAXY_MIN_SIZE_ARCMIN].copy()
+    df_all = df_all.dropna(subset=["size_arcmin", "size_d25_log"]).copy()
+    df_all = df_all[df_all["size_d25_log"] > galaxy_min_size_d25_log].copy()
     df_all = deduplicate_by_position(df_all, tolerance_arcsec=5.0)
     df_all = filter_dataframe_to_constellation(df_all, constellation_abbr)
 
     if constellation_abbr is None:
         print(
             f"Downloaded RC3 galaxies after filters: "
-            f"mag <= {GALAXY_MAG_LIMIT}, size > {GALAXY_MIN_SIZE_ARCMIN}': {len(df_all)}"
+            f"mag <= {GALAXY_MAG_LIMIT}, size > {GALAXY_MIN_SIZE_ARCMIN}' "
+            f"(RC3 D25 > {galaxy_min_size_d25_log:.3f}): {len(df_all)}"
         )
     else:
         print(
             f"Downloaded RC3 galaxies after filters: "
             f"mag <= {GALAXY_MAG_LIMIT}, size > {GALAXY_MIN_SIZE_ARCMIN}' "
+            f"(RC3 D25 > {galaxy_min_size_d25_log:.3f}) "
             f"and constellation {constellation_abbr}: {len(df_all)}"
         )
     if len(df_all) > 0:
@@ -3423,7 +3459,7 @@ def analyze(selected_region, scoring_mode, cache_options=None, status_callback=N
 class ProbolismsApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("Probolizmy_v1.51 — Probolisms by piotrs")
+        self.root.title("Probolizmy_v1.52 — Probolisms by piotrs")
         self.root.geometry("980x720")
         self.root.minsize(900, 660)
 
@@ -3653,8 +3689,8 @@ class ProbolismsApp:
 
         cache_frame = ttk.LabelFrame(left, text="Catalog tiles: save / load from disk")
         cache_frame.pack(fill="x", pady=5)
-        self.load_cache_var = tk.BooleanVar(value=False)
-        self.save_cache_var = tk.BooleanVar(value=False)
+        self.load_cache_var = tk.BooleanVar(value=True)
+        self.save_cache_var = tk.BooleanVar(value=True)
         ttk.Checkbutton(
             cache_frame,
             text="Load catalog tiles from disk if they match the selected area and parameters",
@@ -4042,7 +4078,7 @@ class ProbolismsApp:
         scrollbar.config(command=text_widget.yview)
 
         help_text = """
-Probolizmy_v1.51 — user guide
+Probolizmy_v1.52 — user guide
 
 Program purpose
 ---------------
@@ -4070,7 +4106,7 @@ Sets the RC3 galaxy magnitude limit. The program uses galaxies with magnitude le
 
 Option #5 — minimum galaxy angular size
 ---------------------------------------
-Sets the minimum galaxy size in arcminutes. Default: > 0.8 arcmin.
+Sets the minimum galaxy size in arcminutes. Default: > 0.8 arcmin. For RC3 galaxies, the program converts this arcminute value to the logarithmic D25 scale used by the RC3 catalog and filters galaxies using the converted D25 threshold.
 
 Option #6 — minimum number of galaxies in a probolism
 -----------------------------------------------------
@@ -4156,6 +4192,8 @@ This rule is needed because neighboring search fields overlap. The same real pro
 Catalog tiles — saving and loading
 ----------------------------------
 “Save to disk” stores data downloaded from astronomical catalogs in the selected tile folder. “Load from disk” tries to use previously saved data from that folder. You can type the folder path manually or select it with “Choose folder...”. The program checks whether the saved data match the selected area, constellation, and parameters. If the saved data do not match, the program displays an error in the program window and in the terminal, then downloads the data from the internet.
+
+Use catalog tile cache carefully. After changing filtering parameters, cached tiles from earlier runs may still be loaded from disk, so make sure that the selected cache folder and saved tiles are appropriate for the current calculation.
 
 Results
 -------
