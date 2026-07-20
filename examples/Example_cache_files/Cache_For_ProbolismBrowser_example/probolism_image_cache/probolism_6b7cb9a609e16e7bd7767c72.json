@@ -1,0 +1,15 @@
+{
+  "service": "hips2fits",
+  "hips": "CDS/P/DSS2/color",
+  "ra_deg": 278.39875,
+  "dec_deg": 22.85,
+  "fov_deg": 0.4,
+  "width": 900,
+  "height": 900,
+  "projection": "TAN",
+  "format": "jpg",
+  "stretch": "asinh",
+  "record_index": 12,
+  "url": "https://alasky.cds.unistra.fr/hips-image-services/hips2fits?hips=CDS%2FP%2FDSS2%2Fcolor&width=900&height=900&projection=TAN&ra=278.398750000&dec=22.850000000&fov=0.400000&coordsys=icrs&rotation_angle=0&format=jpg&min_cut=0.5%25&max_cut=99.5%25&stretch=asinh",
+  "created_at": "2026-07-17T21:54:41"
+}

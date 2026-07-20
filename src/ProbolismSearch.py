@@ -1,0 +1,4295 @@
+# Probolizmy_v1.52.py
+# pip install numpy pandas astropy astroquery
+
+import math
+import time
+import threading
+import traceback
+import json
+import hashlib
+import re
+import os
+import sys
+import ctypes
+from pathlib import Path
+import tkinter as tk
+from tkinter import ttk, messagebox, filedialog
+
+import numpy as np
+import pandas as pd
+
+from astropy.coordinates import SkyCoord, FK5, get_constellation, Angle
+from astropy.time import Time
+import astropy.units as u
+
+from astroquery.gaia import Gaia
+from astroquery.vizier import Vizier
+
+
+# ============================================================
+# TERMINAL VISIBILITY
+# ============================================================
+
+def ensure_terminal_visible():
+    if os.name != "nt":
+        return
+
+    try:
+        kernel32 = ctypes.windll.kernel32
+
+        if kernel32.GetConsoleWindow():
+            return
+
+        if not kernel32.AllocConsole():
+            return
+
+        sys.stdout = open("CONOUT$", "w", encoding="utf-8", buffering=1)
+        sys.stderr = open("CONOUT$", "w", encoding="utf-8", buffering=1)
+        sys.stdin = open("CONIN$", "r", encoding="utf-8")
+        print("Terminal output enabled.")
+    except Exception:
+        pass
+
+
+ensure_terminal_visible()
+
+
+# ============================================================
+# PROBOLISM SEARCH SETTINGS
+# ============================================================
+
+DEFAULT_CELL_SIZE_DEG = 0.30
+DEFAULT_STEP_DEG = 0.10
+DEFAULT_STAR_MAG_LIMIT = 12.0
+DEFAULT_GALAXY_MAG_LIMIT = 14.0
+DEFAULT_GALAXY_MIN_SIZE_ARCMIN = 0.8
+DEFAULT_MIN_STARS_FOR_PROBOLISM = 3
+DEFAULT_MIN_GALAXIES_FOR_PROBOLISM = 3
+
+STAR_MAG_LIMIT = DEFAULT_STAR_MAG_LIMIT
+GALAXY_MAG_LIMIT = DEFAULT_GALAXY_MAG_LIMIT
+GALAXY_MIN_SIZE_ARCMIN = DEFAULT_GALAXY_MIN_SIZE_ARCMIN
+
+CELL_SIZE_DEG = DEFAULT_CELL_SIZE_DEG
+STEP_DEG = DEFAULT_STEP_DEG
+
+MIN_STARS_FOR_PROBOLISM = DEFAULT_MIN_STARS_FOR_PROBOLISM
+MIN_GALAXIES_FOR_PROBOLISM = DEFAULT_MIN_GALAXIES_FOR_PROBOLISM
+
+TEST_FIELD_NAME = "NGC440 5x5"
+TEST_FIELD_ABBR = "NGC440_5x5"
+TEST_FIELD_CENTER_RA_DEC = "12h27m53.6s +12d17m36s"  # test-field center: NGC 4440, J2000/ICRS
+TEST_FIELD_SIZE_DEG = 5.0
+
+
+MESSIER_FIELD_SIZE_OPTIONS = list(range(2, 16))
+
+MESSIER_OBJECTS = [
+    {"id": "M1", "name": "Crab Nebula", "ra": "05h34m31.9s", "dec": "+22d00m52s"},
+    {"id": "M2", "name": "Globular Cluster in Aquarius", "ra": "21h33m27.0s", "dec": "-00d49m24s"},
+    {"id": "M3", "name": "Globular Cluster in Canes Venatici", "ra": "13h42m11.6s", "dec": "+28d22m38s"},
+    {"id": "M4", "name": "Globular Cluster in Scorpius", "ra": "16h23m35.2s", "dec": "-26d31m33s"},
+    {"id": "M5", "name": "Globular Cluster in Serpens", "ra": "15h18m33.2s", "dec": "+02d04m51s"},
+    {"id": "M6", "name": "Butterfly Cluster", "ra": "17h40m20s", "dec": "-32d15m12s"},
+    {"id": "M7", "name": "Ptolemy Cluster", "ra": "17h53m51s", "dec": "-34d47m34s"},
+    {"id": "M8", "name": "Lagoon Nebula", "ra": "18h03m37s", "dec": "-24d23m12s"},
+    {"id": "M9", "name": "Globular Cluster in Ophiuchus", "ra": "17h19m11.8s", "dec": "-18d30m59s"},
+    {"id": "M10", "name": "Globular Cluster in Ophiuchus", "ra": "16h57m08.9s", "dec": "-04d05m58s"},
+    {"id": "M11", "name": "Wild Duck Cluster", "ra": "18h51m05s", "dec": "-06d16m12s"},
+    {"id": "M12", "name": "Globular Cluster in Ophiuchus", "ra": "16h47m14.5s", "dec": "-01d56m52s"},
+    {"id": "M13", "name": "Hercules Globular Cluster", "ra": "16h41m41.2s", "dec": "+36d27m36s"},
+    {"id": "M14", "name": "Globular Cluster in Ophiuchus", "ra": "17h37m36.1s", "dec": "-03d14m45s"},
+    {"id": "M15", "name": "Great Pegasus Cluster", "ra": "21h29m58.3s", "dec": "+12d10m01s"},
+    {"id": "M16", "name": "Eagle Nebula", "ra": "18h18m48s", "dec": "-13d49m00s"},
+    {"id": "M17", "name": "Omega Nebula", "ra": "18h20m47s", "dec": "-16d10m18s"},
+    {"id": "M18", "name": "Open Cluster in Sagittarius", "ra": "18h19m58s", "dec": "-17d06m07s"},
+    {"id": "M19", "name": "Globular Cluster in Ophiuchus", "ra": "17h02m37.8s", "dec": "-26d16m05s"},
+    {"id": "M20", "name": "Trifid Nebula", "ra": "18h02m23s", "dec": "-23d01m48s"},
+    {"id": "M21", "name": "Open Cluster in Sagittarius", "ra": "18h04m13s", "dec": "-22d29m24s"},
+    {"id": "M22", "name": "Sagittarius Cluster", "ra": "18h36m24.2s", "dec": "-23d54m12s"},
+    {"id": "M23", "name": "Open Cluster in Sagittarius", "ra": "17h56m56s", "dec": "-19d00m00s"},
+    {"id": "M24", "name": "Sagittarius Star Cloud", "ra": "18h18m24s", "dec": "-18d24m00s"},
+    {"id": "M25", "name": "Open Cluster in Sagittarius", "ra": "18h31m47s", "dec": "-19d06m54s"},
+    {"id": "M26", "name": "Open Cluster in Scutum", "ra": "18h45m18s", "dec": "-09d23m00s"},
+    {"id": "M27", "name": "Dumbbell Nebula", "ra": "19h59m36.3s", "dec": "+22d43m16s"},
+    {"id": "M28", "name": "Globular Cluster in Sagittarius", "ra": "18h24m32.9s", "dec": "-24d52m11s"},
+    {"id": "M29", "name": "Open Cluster in Cygnus", "ra": "20h23m56s", "dec": "+38d31m24s"},
+    {"id": "M30", "name": "Globular Cluster in Capricornus", "ra": "21h40m22.1s", "dec": "-23d10m47s"},
+    {"id": "M31", "name": "Andromeda Galaxy", "ra": "00h42m44.3s", "dec": "+41d16m09s"},
+    {"id": "M32", "name": "Dwarf Elliptical Galaxy in Andromeda", "ra": "00h42m41.8s", "dec": "+40d51m55s"},
+    {"id": "M33", "name": "Triangulum Galaxy", "ra": "01h33m50.9s", "dec": "+30d39m37s"},
+    {"id": "M34", "name": "Open Cluster in Perseus", "ra": "02h42m05s", "dec": "+42d45m42s"},
+    {"id": "M35", "name": "Open Cluster in Gemini", "ra": "06h08m54s", "dec": "+24d20m00s"},
+    {"id": "M36", "name": "Open Cluster in Auriga", "ra": "05h36m18s", "dec": "+34d08m24s"},
+    {"id": "M37", "name": "Open Cluster in Auriga", "ra": "05h52m18s", "dec": "+32d33m12s"},
+    {"id": "M38", "name": "Open Cluster in Auriga", "ra": "05h28m42s", "dec": "+35d51m18s"},
+    {"id": "M39", "name": "Open Cluster in Cygnus", "ra": "21h31m48s", "dec": "+48d26m00s"},
+    {"id": "M40", "name": "Winnecke 4", "ra": "12h22m16s", "dec": "+58d05m04s"},
+    {"id": "M41", "name": "Open Cluster in Canis Major", "ra": "06h46m00s", "dec": "-20d44m00s"},
+    {"id": "M42", "name": "Orion Nebula", "ra": "05h35m17.3s", "dec": "-05d23m28s"},
+    {"id": "M43", "name": "De Mairan's Nebula", "ra": "05h35m31.3s", "dec": "-05d16m12s"},
+    {"id": "M44", "name": "Beehive Cluster", "ra": "08h40m24s", "dec": "+19d40m00s"},
+    {"id": "M45", "name": "Pleiades", "ra": "03h47m00s", "dec": "+24d07m00s"},
+    {"id": "M46", "name": "Open Cluster in Puppis", "ra": "07h41m46s", "dec": "-14d48m36s"},
+    {"id": "M47", "name": "Open Cluster in Puppis", "ra": "07h36m36s", "dec": "-14d29m00s"},
+    {"id": "M48", "name": "Open Cluster in Hydra", "ra": "08h13m43s", "dec": "-05d45m00s"},
+    {"id": "M49", "name": "Elliptical Galaxy in Virgo", "ra": "12h29m46.7s", "dec": "+08d00m02s"},
+    {"id": "M50", "name": "Open Cluster in Monoceros", "ra": "07h02m47s", "dec": "-08d20m00s"},
+    {"id": "M51", "name": "Whirlpool Galaxy", "ra": "13h29m52.7s", "dec": "+47d11m43s"},
+    {"id": "M52", "name": "Open Cluster in Cassiopeia", "ra": "23h24m48s", "dec": "+61d35m36s"},
+    {"id": "M53", "name": "Globular Cluster in Coma Berenices", "ra": "13h12m55.3s", "dec": "+18d10m09s"},
+    {"id": "M54", "name": "Globular Cluster in Sagittarius", "ra": "18h55m03.3s", "dec": "-30d28m47s"},
+    {"id": "M55", "name": "Summer Rose Star", "ra": "19h39m59.7s", "dec": "-30d57m44s"},
+    {"id": "M56", "name": "Globular Cluster in Lyra", "ra": "19h16m35.5s", "dec": "+30d11m04s"},
+    {"id": "M57", "name": "Ring Nebula", "ra": "18h53m35.1s", "dec": "+33d01m45s"},
+    {"id": "M58", "name": "Barred Spiral Galaxy in Virgo", "ra": "12h37m43.5s", "dec": "+11d49m05s"},
+    {"id": "M59", "name": "Elliptical Galaxy in Virgo", "ra": "12h42m02.3s", "dec": "+11d38m49s"},
+    {"id": "M60", "name": "Elliptical Galaxy in Virgo", "ra": "12h43m40.0s", "dec": "+11d33m09s"},
+    {"id": "M61", "name": "Spiral Galaxy in Virgo", "ra": "12h21m54.9s", "dec": "+04d28m25s"},
+    {"id": "M62", "name": "Globular Cluster in Ophiuchus", "ra": "17h01m12.8s", "dec": "-30d06m49s"},
+    {"id": "M63", "name": "Sunflower Galaxy", "ra": "13h15m49.3s", "dec": "+42d01m45s"},
+    {"id": "M64", "name": "Black Eye Galaxy", "ra": "12h56m43.7s", "dec": "+21d40m58s"},
+    {"id": "M65", "name": "Leo Triplet Galaxy", "ra": "11h18m55.9s", "dec": "+13d05m32s"},
+    {"id": "M66", "name": "Leo Triplet Galaxy", "ra": "11h20m15.0s", "dec": "+12d59m30s"},
+    {"id": "M67", "name": "King Cobra Cluster", "ra": "08h51m18s", "dec": "+11d48m00s"},
+    {"id": "M68", "name": "Globular Cluster in Hydra", "ra": "12h39m28.0s", "dec": "-26d44m34s"},
+    {"id": "M69", "name": "Globular Cluster in Sagittarius", "ra": "18h31m23.1s", "dec": "-32d20m53s"},
+    {"id": "M70", "name": "Globular Cluster in Sagittarius", "ra": "18h43m12.8s", "dec": "-32d17m31s"},
+    {"id": "M71", "name": "Globular Cluster in Sagitta", "ra": "19h53m46.5s", "dec": "+18d46m42s"},
+    {"id": "M72", "name": "Globular Cluster in Aquarius", "ra": "20h53m27.9s", "dec": "-12d32m14s"},
+    {"id": "M73", "name": "Asterism in Aquarius", "ra": "20h58m56s", "dec": "-12d38m07s"},
+    {"id": "M74", "name": "Phantom Galaxy", "ra": "01h36m41.7s", "dec": "+15d47m01s"},
+    {"id": "M75", "name": "Globular Cluster in Sagittarius", "ra": "20h06m04.8s", "dec": "-21d55m17s"},
+    {"id": "M76", "name": "Little Dumbbell Nebula", "ra": "01h42m19.7s", "dec": "+51d34m31s"},
+    {"id": "M77", "name": "Cetus A", "ra": "02h42m40.8s", "dec": "-00d00m48s"},
+    {"id": "M78", "name": "Reflection Nebula in Orion", "ra": "05h46m45s", "dec": "+00d03m00s"},
+    {"id": "M79", "name": "Globular Cluster in Lepus", "ra": "05h24m10.6s", "dec": "-24d31m27s"},
+    {"id": "M80", "name": "Globular Cluster in Scorpius", "ra": "16h17m02.4s", "dec": "-22d58m33s"},
+    {"id": "M81", "name": "Bode's Galaxy", "ra": "09h55m33.2s", "dec": "+69d03m55s"},
+    {"id": "M82", "name": "Cigar Galaxy", "ra": "09h55m52.7s", "dec": "+69d40m47s"},
+    {"id": "M83", "name": "Southern Pinwheel Galaxy", "ra": "13h37m00.9s", "dec": "-29d51m57s"},
+    {"id": "M84", "name": "Elliptical Galaxy in Virgo", "ra": "12h25m03.7s", "dec": "+12d53m13s"},
+    {"id": "M85", "name": "Lenticular Galaxy in Coma Berenices", "ra": "12h25m24.1s", "dec": "+18d11m27s"},
+    {"id": "M86", "name": "Lenticular Galaxy in Virgo", "ra": "12h26m12.2s", "dec": "+12d56m46s"},
+    {"id": "M87", "name": "Virgo A", "ra": "12h30m49.4s", "dec": "+12d23m28s"},
+    {"id": "M88", "name": "Spiral Galaxy in Coma Berenices", "ra": "12h31m59.2s", "dec": "+14d25m14s"},
+    {"id": "M89", "name": "Elliptical Galaxy in Virgo", "ra": "12h35m39.8s", "dec": "+12d33m23s"},
+    {"id": "M90", "name": "Spiral Galaxy in Virgo", "ra": "12h36m49.8s", "dec": "+13d09m46s"},
+    {"id": "M91", "name": "Barred Spiral Galaxy in Coma Berenices", "ra": "12h35m26.4s", "dec": "+14d29m46s"},
+    {"id": "M92", "name": "Globular Cluster in Hercules", "ra": "17h17m07.4s", "dec": "+43d08m11s"},
+    {"id": "M93", "name": "Open Cluster in Puppis", "ra": "07h44m29s", "dec": "-23d51m12s"},
+    {"id": "M94", "name": "Croc's Eye Galaxy", "ra": "12h50m53.1s", "dec": "+41d07m14s"},
+    {"id": "M95", "name": "Barred Spiral Galaxy in Leo", "ra": "10h43m57.7s", "dec": "+11d42m14s"},
+    {"id": "M96", "name": "Spiral Galaxy in Leo", "ra": "10h46m45.7s", "dec": "+11d49m12s"},
+    {"id": "M97", "name": "Owl Nebula", "ra": "11h14m47.7s", "dec": "+55d01m09s"},
+    {"id": "M98", "name": "Spiral Galaxy in Coma Berenices", "ra": "12h13m48.3s", "dec": "+14d54m01s"},
+    {"id": "M99", "name": "Pinwheel Galaxy", "ra": "12h18m49.6s", "dec": "+14d25m00s"},
+    {"id": "M100", "name": "Grand Design Spiral Galaxy", "ra": "12h22m54.9s", "dec": "+15d49m21s"},
+    {"id": "M101", "name": "Pinwheel Galaxy", "ra": "14h03m12.6s", "dec": "+54d20m57s"},
+    {"id": "M102", "name": "Spindle Galaxy", "ra": "15h06m29.5s", "dec": "+55d45m48s"},
+    {"id": "M103", "name": "Open Cluster in Cassiopeia", "ra": "01h33m23s", "dec": "+60d39m00s"},
+    {"id": "M104", "name": "Sombrero Galaxy", "ra": "12h39m59.4s", "dec": "-11d37m23s"},
+    {"id": "M105", "name": "Elliptical Galaxy in Leo", "ra": "10h47m49.6s", "dec": "+12d34m54s"},
+    {"id": "M106", "name": "Spiral Galaxy in Canes Venatici", "ra": "12h18m57.5s", "dec": "+47d18m14s"},
+    {"id": "M107", "name": "Globular Cluster in Ophiuchus", "ra": "16h32m31.9s", "dec": "-13d03m13s"},
+    {"id": "M108", "name": "Surfboard Galaxy", "ra": "11h11m31.0s", "dec": "+55d40m27s"},
+    {"id": "M109", "name": "Barred Spiral Galaxy in Ursa Major", "ra": "11h57m36.0s", "dec": "+53d22m28s"},
+    {"id": "M110", "name": "Dwarf Elliptical Galaxy in Andromeda", "ra": "00h40m22.1s", "dec": "+41d41m07s"},
+]
+
+
+# Used to determine the bounding box containing a constellation.
+CONSTELLATION_BBOX_SAMPLE_STEP_DEG = 1.0
+CONSTELLATION_BBOX_MARGIN_DEG = 1.0
+
+# Catalogs are queried in tiles to reduce the risk of connection interruption
+# for large constellations.
+QUERY_TILE_SIZE_DEG = 5.0
+QUERY_SLEEP_SEC = 0.4
+
+VIZIER_RC3_CATALOGS_TO_TRY = [
+    "VII/155/rc3",
+    "VII/155",
+]
+
+OUTPUT_ALL_CSV_TEMPLATE = "probolisms_{abbr}_results_{settings}_with_galaxies_current_dedup.csv"
+OUTPUT_CANDIDATES_CSV_TEMPLATE = "probolisms_{abbr}_candidates_{settings}_with_galaxies_current_dedup.csv"
+
+DEBUG_VIZIER_COLUMNS = False
+
+Gaia.ROW_LIMIT = -1
+Gaia.TIMEOUT = 300
+Vizier.ROW_LIMIT = -1
+Vizier.TIMEOUT = 300
+
+DATA_CACHE_VERSION = 1
+DATA_CACHE_DIR = "probolism_tiles_cache"
+
+PROBOLISM_IMAGE_BASE64 = """R0lGODdhaAHhAIcAANPBvJKBf3VgXFZTUFNAO0M8Njc5OTQxLTYqJS4oJSgoJCgiHiIlJCEhHyAf
+HR0cIBwcGh4bGBkaGCIbExwZFBkYFBcZGhcYFRcXGBcXFBQXFhsVExgVExcVFBYVFhYVEhUVFhUV
+FBUUFRUVEhUUEhQVFxQVFRQVFBQUExQVERQUERMVFRMUFRMUExIUFRMUERIUERcTERUTEhQTFBQT
+EhQTEBMTFRMTExMSFBMTEhMSEhMTERMTEBMSERMSDxITFRITExISFRISExITEhISEhITEBISERIS
+EBISDxETFBESFRESExETEhESEhASEw8SFBETEBESERESEBESDhATEBASERASDw8SEBERFhERFBMR
+ExERExARExMREhIREhEREhEQEhAREhAQEhMRERIRERIQEREREREQERARERAQERQREBIREBIQEBER
+EBEQEBAREBAQEBURDRMRDhIRDxIRDhERDxEQDxERDhEQDhEQDRARDxARDRAQDxAQDhAQDRAQDA4Q
+Ew8QEg4QEg8REQ8QEQ4QEQ8REA8QEA4QEA8RDg8QDw8QDg8QDA4RDg4QDw4QDQ0QDhQPDhIPDhEP
+EREPDxEPDREODhAPEhAPEBAPDxAPDhAPDRAPDBAOEBAODRANDQ8PEg8PEQ8PEA8PDw8PDg8PDQ8P
+DA8OEQ8ODw8ODg8NDw8ODQ8ODA8OCw8NDA4PEQ4PEA4OEQ4OEA4PDw4ODw4PDg4ODg4PDQ4PDA4O
+DQ4ODA4OCw4NEA4NDg4NDQ4NDA4NCw4MDQ0PEQ0PDw0OEA0ODw0PDg0ODg0PDQ0ODQ0NDw0NDg0N
+DQwPEAwODwwODQsODwwNDwwNDgwNDQsNDg0PDA0ODA0OCwwODA0NDA0NCw0NCgwNDAsNDAwNCwwM
+DwwMDg0MDQwMDQ0MDAwMDAwLDQ0MCwwMCwwMCgwMCQwLCgsMDgsMDQsMDAsLDQsLDAsMCwsLCwoM
+DAoLDAkLDAsMCgsLCQoLCgsKCwoKDAoKCgoKCAkKCgoJCgkJCQgICSwAAAAAaAHhAEAI/wCR1GlD
+xJanGgcUJFAAoQaZHkc4+cgjx5QnMmtu6brTatcuRqZaxakx5Vq9c79MbdN1jly2bOPUtYrho4+9
+feh0lWL1yxe6ePO6ybv3b149TW0c3XOWzx8/fP/+9ZPGL+o8f+2YwRrRIEGDQO/UzeOXj1/VfP/4
+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"""
+
+
+
+# ============================================================
+# CONSTELLATION LIST AND USER SELECTION
+# ============================================================
+
+CONSTELLATIONS = [
+    ("And", "Andromeda"), ("Ant", "Antlia"), ("Aps", "Apus"),
+    ("Aqr", "Aquarius"), ("Aql", "Aquila"), ("Ara", "Ara"),
+    ("Ari", "Aries"), ("Aur", "Auriga"), ("Boo", "Bootes"),
+    ("Cae", "Caelum"), ("Cam", "Camelopardalis"), ("Cnc", "Cancer"),
+    ("CVn", "Canes Venatici"), ("CMa", "Canis Major"), ("CMi", "Canis Minor"),
+    ("Cap", "Capricornus"), ("Car", "Carina"), ("Cas", "Cassiopeia"),
+    ("Cen", "Centaurus"), ("Cep", "Cepheus"), ("Cet", "Cetus"),
+    ("Cha", "Chamaeleon"), ("Cir", "Circinus"), ("Col", "Columba"),
+    ("Com", "Coma Berenices"), ("CrA", "Corona Australis"), ("CrB", "Corona Borealis"),
+    ("Crv", "Corvus"), ("Crt", "Crater"), ("Cru", "Crux"),
+    ("Cyg", "Cygnus"), ("Del", "Delphinus"), ("Dor", "Dorado"),
+    ("Dra", "Draco"), ("Equ", "Equuleus"), ("Eri", "Eridanus"),
+    ("For", "Fornax"), ("Gem", "Gemini"), ("Gru", "Grus"),
+    ("Her", "Hercules"), ("Hor", "Horologium"), ("Hya", "Hydra"),
+    ("Hyi", "Hydrus"), ("Ind", "Indus"), ("Lac", "Lacerta"),
+    ("Leo", "Leo"), ("LMi", "Leo Minor"), ("Lep", "Lepus"),
+    ("Lib", "Libra"), ("Lup", "Lupus"), ("Lyn", "Lynx"),
+    ("Lyr", "Lyra"), ("Men", "Mensa"), ("Mic", "Microscopium"),
+    ("Mon", "Monoceros"), ("Mus", "Musca"), ("Nor", "Norma"),
+    ("Oct", "Octans"), ("Oph", "Ophiuchus"), ("Ori", "Orion"),
+    ("Pav", "Pavo"), ("Peg", "Pegasus"), ("Per", "Perseus"),
+    ("Phe", "Phoenix"), ("Pic", "Pictor"), ("Psc", "Pisces"),
+    ("PsA", "Piscis Austrinus"), ("Pup", "Puppis"), ("Pyx", "Pyxis"),
+    ("Ret", "Reticulum"), ("Sge", "Sagitta"), ("Sgr", "Sagittarius"),
+    ("Sco", "Scorpius"), ("Scl", "Sculptor"), ("Sct", "Scutum"),
+    ("Ser", "Serpens"), ("Sex", "Sextans"), ("Tau", "Taurus"),
+    ("Tel", "Telescopium"), ("Tri", "Triangulum"), ("TrA", "Triangulum Australe"),
+    ("Tuc", "Tucana"), ("UMa", "Ursa Major"), ("UMi", "Ursa Minor"),
+    ("Vel", "Vela"), ("Vir", "Virgo"), ("Vol", "Volans"), ("Vul", "Vulpecula"),
+]
+
+
+def choose_search_region():
+    print("Choose the area in which the program should search for probolisms:\n")
+    print(f"{1:2d}. {TEST_FIELD_NAME:24s} [test field, centered on NGC 4440]")
+    for i, (abbr, name) in enumerate(CONSTELLATIONS, start=2):
+        print(f"{i:2d}. {name:24s} [{abbr}]")
+    print()
+
+    max_number = len(CONSTELLATIONS) + 1
+
+    while True:
+        value = input("Enter area number: ").strip()
+        try:
+            index = int(value)
+        except ValueError:
+            print("This is not a number. Try again.")
+            continue
+
+        if index == 1:
+            print(f"\nSelected: {TEST_FIELD_NAME}, 5° × 5° field centered on NGC 4440\n")
+            return {
+                "mode": "test_field",
+                "abbr": TEST_FIELD_ABBR,
+                "name": TEST_FIELD_NAME,
+                "center_radec": TEST_FIELD_CENTER_RA_DEC,
+                "field_size_deg": TEST_FIELD_SIZE_DEG,
+            }
+
+        if 2 <= index <= max_number:
+            abbr, name = CONSTELLATIONS[index - 2]
+            print(f"\nSelected: {name} [{abbr}]\n")
+            return {
+                "mode": "constellation",
+                "abbr": abbr,
+                "name": name,
+            }
+
+        print(f"Number must be in the range from 1 to {max_number}.")
+
+
+def choose_scoring_mode():
+    print("Choose scoring mode:\n")
+    print("(a) linear version:")
+    print("    P_raw  = g_star × g_gal")
+    print("    P_norm = (g_star / star_base) × (g_gal / gal_base)\n")
+    print("(b) galaxy-square version:")
+    print("    P_raw  = g_star × g_gal²")
+    print("    P_norm = (g_star / star_base) × (g_gal / gal_base)²\n")
+    print("(c) star-and-galaxy-square version:")
+    print("    P_raw  = g_star² × g_gal²")
+    print("    P_norm = (g_star / star_base)² × (g_gal / gal_base)²\n")
+
+    modes = {
+        "a": {
+            "id": "linear",
+            "name": "linear version",
+            "star_power": 1,
+            "gal_power": 1,
+        },
+        "b": {
+            "id": "galaxy_square",
+            "name": "galaxy-square version",
+            "star_power": 1,
+            "gal_power": 2,
+        },
+        "c": {
+            "id": "star_and_galaxy_square",
+            "name": "star-and-galaxy-square version",
+            "star_power": 2,
+            "gal_power": 2,
+        },
+    }
+
+    aliases = {"1": "a", "2": "b", "3": "c"}
+
+    while True:
+        value = input("Enter scoring mode (a/b/c): ").strip().lower()
+        value = aliases.get(value, value)
+
+        if value in modes:
+            selected = modes[value]
+            print(f"\nSelected: {selected['name']}\n")
+            return selected
+
+        print("Choose one option: a, b, or c.")
+
+
+# ============================================================
+# OKIENKO Z WIATRACZKIEM
+# ============================================================
+
+class SpinnerWindow:
+    def __init__(self):
+        self.running = True
+        self.frames = ["|", "/", "-", "\\"]
+        self.i = 0
+        self.root = tk.Tk()
+        self.root.title("Program is running")
+        self.root.geometry("440x140")
+        self.root.resizable(False, False)
+        self.label = tk.Label(
+            self.root,
+            text="Program is running...\n|",
+            font=("Consolas", 18),
+            justify="center"
+        )
+        self.label.pack(expand=True)
+        self.root.protocol("WM_DELETE_WINDOW", self.hide)
+
+    def hide(self):
+        self.root.withdraw()
+
+    def update(self):
+        if self.running:
+            frame = self.frames[self.i % len(self.frames)]
+            self.label.config(text=f"Program is running...\n{frame}")
+            self.i += 1
+            self.root.after(150, self.update)
+        else:
+            self.root.destroy()
+
+    def start(self):
+        self.update()
+        self.root.mainloop()
+
+    def stop(self):
+        self.running = False
+
+
+# ============================================================
+# HELPER FUNCTIONS
+# ============================================================
+
+def normalize_ra(ra_deg):
+    return float(ra_deg) % 360.0
+
+
+def ra_interval_length(ra_start, ra_end):
+    length = (ra_end - ra_start) % 360.0
+    return 360.0 if length == 0 else length
+
+
+def ra_in_interval(ra_deg, ra_start, ra_end):
+    ra = normalize_ra(ra_deg)
+    start = normalize_ra(ra_start)
+    end = normalize_ra(ra_end)
+    if start <= end:
+        return start <= ra <= end
+    return ra >= start or ra <= end
+
+
+def ra_condition_for_adql(ra_min, ra_max):
+    ra_min = normalize_ra(ra_min)
+    ra_max = normalize_ra(ra_max)
+    if ra_min <= ra_max:
+        return f"ra BETWEEN {ra_min} AND {ra_max}"
+    return f"(ra >= {ra_min} OR ra <= {ra_max})"
+
+
+def safe_numeric(series):
+    return pd.to_numeric(series, errors="coerce")
+
+
+def ra_deg_to_hms(ra_deg):
+    c = SkyCoord(ra=normalize_ra(ra_deg) * u.deg, dec=0 * u.deg, frame="icrs")
+    return c.ra.to_string(unit=u.hour, sep="hms", precision=1, pad=True)
+
+
+def dec_deg_to_dms(dec_deg):
+    c = SkyCoord(ra=0 * u.deg, dec=dec_deg * u.deg, frame="icrs")
+    return c.dec.to_string(unit=u.deg, sep="dms", precision=1, alwayssign=True, pad=True)
+
+
+def coord_to_current_epoch(ra_deg, dec_deg):
+    c = SkyCoord(ra=normalize_ra(ra_deg) * u.deg, dec=dec_deg * u.deg, frame="icrs")
+    return c.transform_to(FK5(equinox=Time.now()))
+
+
+def ra_deg_to_current_hms(ra_deg, dec_deg):
+    c = coord_to_current_epoch(ra_deg, dec_deg)
+    return c.ra.to_string(unit=u.hour, sep="hms", precision=1, pad=True)
+
+
+def dec_deg_to_current_dms(ra_deg, dec_deg):
+    c = coord_to_current_epoch(ra_deg, dec_deg)
+    return c.dec.to_string(unit=u.deg, sep="dms", precision=1, alwayssign=True, pad=True)
+
+
+def current_epoch_strings_for_cells(cells):
+    if not cells:
+        return [], []
+
+    ra_values = np.asarray([cell.ra.deg for cell in cells], dtype=float)
+    dec_values = np.asarray([cell.dec.deg for cell in cells], dtype=float)
+
+    coords = SkyCoord(
+        ra=np.mod(ra_values, 360.0) * u.deg,
+        dec=dec_values * u.deg,
+        frame="icrs"
+    )
+    current_coords = coords.transform_to(FK5(equinox=Time.now()))
+
+    current_ra = current_coords.ra.to_string(
+        unit=u.hour,
+        sep="hms",
+        precision=1,
+        pad=True
+    )
+    current_dec = current_coords.dec.to_string(
+        unit=u.deg,
+        sep="dms",
+        precision=1,
+        alwayssign=True,
+        pad=True
+    )
+
+    return list(current_ra), list(current_dec)
+
+
+def get_constellation_short(coord: SkyCoord):
+    return get_constellation(coord, short_name=True, constellation_list="iau")
+
+
+def filter_dataframe_to_constellation(df: pd.DataFrame, constellation_abbr: str) -> pd.DataFrame:
+    if df.empty or constellation_abbr is None:
+        return df
+    coords = SkyCoord(ra=df["ra_deg"].to_numpy() * u.deg,
+                      dec=df["dec_deg"].to_numpy() * u.deg,
+                      frame="icrs")
+    constellations = np.asarray(get_constellation_short(coords))
+    return df.loc[constellations == constellation_abbr].reset_index(drop=True)
+
+
+def compute_ra_interval_from_points(ra_values, margin_deg):
+    ra = np.sort(np.asarray(ra_values, dtype=float) % 360.0)
+    if len(ra) == 0:
+        raise ValueError("No RA points available to determine the interval.")
+    if len(ra) == 1:
+        return normalize_ra(ra[0] - margin_deg), normalize_ra(ra[0] + margin_deg)
+
+    extended = np.concatenate([ra, [ra[0] + 360.0]])
+    gaps = np.diff(extended)
+    largest_gap_index = int(np.argmax(gaps))
+    start = normalize_ra(ra[(largest_gap_index + 1) % len(ra)] - margin_deg)
+    end = normalize_ra(ra[largest_gap_index] + margin_deg)
+    return start, end
+
+
+def compute_constellation_bbox(constellation_abbr: str):
+    print("Determining an approximate constellation bounding box from IAU boundaries...")
+    ra_values = np.arange(0.0, 360.0, CONSTELLATION_BBOX_SAMPLE_STEP_DEG)
+    dec_values = np.arange(-89.5, 90.0, CONSTELLATION_BBOX_SAMPLE_STEP_DEG)
+    ra_grid, dec_grid = np.meshgrid(ra_values, dec_values)
+    coords = SkyCoord(ra=ra_grid.ravel() * u.deg,
+                      dec=dec_grid.ravel() * u.deg,
+                      frame="icrs")
+    names = np.asarray(get_constellation_short(coords))
+    mask = names == constellation_abbr
+    if not np.any(mask):
+        raise RuntimeError(f"Could not determine the bounding box for constellation {constellation_abbr}.")
+
+    selected_ra = coords.ra.deg[mask]
+    selected_dec = coords.dec.deg[mask]
+    ra_start, ra_end = compute_ra_interval_from_points(selected_ra, CONSTELLATION_BBOX_MARGIN_DEG)
+    dec_min = max(-90.0, float(np.min(selected_dec)) - CONSTELLATION_BBOX_MARGIN_DEG)
+    dec_max = min(90.0, float(np.max(selected_dec)) + CONSTELLATION_BBOX_MARGIN_DEG)
+    bbox = {
+        "ra_start": ra_start,
+        "ra_end": ra_end,
+        "ra_length": ra_interval_length(ra_start, ra_end),
+        "dec_min": dec_min,
+        "dec_max": dec_max,
+    }
+    print(
+        "Working bounding box: "
+        f"RA {ra_deg_to_hms(ra_start)} -- {ra_deg_to_hms(ra_end)}, "
+        f"Dec {dec_deg_to_dms(dec_min)} -- {dec_deg_to_dms(dec_max)}"
+    )
+    return bbox
+
+
+
+def parse_ra_for_region(value):
+    value = str(value).strip()
+
+    if not value:
+        raise ValueError("RA coordinate is empty.")
+
+    try:
+        if "h" in value.lower() or ":" in value:
+            return normalize_ra(Angle(value, unit=u.hourangle).degree)
+
+        return normalize_ra(Angle(value, unit=u.deg).degree)
+    except Exception as exc:
+        raise ValueError(f"Invalid RA coordinate: {value}") from exc
+
+
+def parse_dec_for_region(value):
+    value = str(value).strip()
+
+    if not value:
+        raise ValueError("DEC coordinate is empty.")
+
+    try:
+        dec_deg = Angle(value, unit=u.deg).degree
+    except Exception as exc:
+        raise ValueError(f"Invalid DEC coordinate: {value}") from exc
+
+    if dec_deg < -90.0 or dec_deg > 90.0:
+        raise ValueError("DEC coordinate must be in the range -90...+90 degrees.")
+
+    return float(dec_deg)
+
+
+def compute_rectangle_bbox_from_corners(ra1_text, dec1_text, ra2_text, dec2_text, announce=True):
+    ra1 = parse_ra_for_region(ra1_text)
+    dec1 = parse_dec_for_region(dec1_text)
+    ra2 = parse_ra_for_region(ra2_text)
+    dec2 = parse_dec_for_region(dec2_text)
+
+    forward_length = ra_interval_length(ra1, ra2)
+    backward_length = ra_interval_length(ra2, ra1)
+
+    if forward_length <= backward_length:
+        ra_start = ra1
+        ra_end = ra2
+        ra_length = forward_length
+    else:
+        ra_start = ra2
+        ra_end = ra1
+        ra_length = backward_length
+
+    dec_min = min(dec1, dec2)
+    dec_max = max(dec1, dec2)
+    dec_height = dec_max - dec_min
+
+    if ra_length <= 0.0 or dec_height <= 0.0:
+        raise ValueError("The custom rectangle must have a non-zero RA and DEC size.")
+
+    mid_dec = (dec_min + dec_max) / 2.0
+    angular_width = ra_length * max(0.02, math.cos(math.radians(mid_dec)))
+
+    if angular_width > 15.0 or dec_height > 15.0:
+        raise ValueError(
+            "The custom rectangle is too large. The resulting search area must not exceed 15° × 15°."
+        )
+
+    bbox = {
+        "ra_start": ra_start,
+        "ra_end": ra_end,
+        "ra_length": ra_length,
+        "dec_min": dec_min,
+        "dec_max": dec_max,
+    }
+
+    if announce:
+        print(
+            "Custom-rectangle bounding box: "
+            f"RA {ra_deg_to_hms(ra_start)} -- {ra_deg_to_hms(ra_end)}, "
+            f"Dec {dec_deg_to_dms(dec_min)} -- {dec_deg_to_dms(dec_max)}"
+        )
+        print(
+            "Approximate custom-rectangle angular size: "
+            f"{angular_width:.3f}° × {dec_height:.3f}°"
+        )
+
+    return bbox
+
+
+def compute_test_field_bbox(center_radec: str, field_size_deg: float):
+    """
+    Creates a square bounding box around a selected center.
+    The center is given as J2000/ICRS coordinates.
+    """
+
+    center = SkyCoord(center_radec, frame="icrs")
+    cos_dec = max(0.02, math.cos(math.radians(center.dec.deg)))
+
+    ra_half = (field_size_deg / 2.0) / cos_dec
+    dec_half = field_size_deg / 2.0
+
+    ra_start = normalize_ra(center.ra.deg - ra_half)
+    ra_end = normalize_ra(center.ra.deg + ra_half)
+    dec_min = max(-90.0, center.dec.deg - dec_half)
+    dec_max = min(90.0, center.dec.deg + dec_half)
+
+    bbox = {
+        "ra_start": ra_start,
+        "ra_end": ra_end,
+        "ra_length": ra_interval_length(ra_start, ra_end),
+        "dec_min": dec_min,
+        "dec_max": dec_max,
+    }
+
+    print(
+        "Square-field bounding box: "
+        f"RA {ra_deg_to_hms(ra_start)} -- {ra_deg_to_hms(ra_end)}, "
+        f"Dec {dec_deg_to_dms(dec_min)} -- {dec_deg_to_dms(dec_max)}"
+    )
+
+    return bbox
+
+
+def cell_bounds(cell_center: SkyCoord):
+    cos_dec = max(0.02, math.cos(math.radians(cell_center.dec.deg)))
+    ra_half = (CELL_SIZE_DEG / 2.0) / cos_dec
+    dec_half = CELL_SIZE_DEG / 2.0
+    return {
+        "ra_min": normalize_ra(cell_center.ra.deg - ra_half),
+        "ra_max": normalize_ra(cell_center.ra.deg + ra_half),
+        "dec_min": cell_center.dec.deg - dec_half,
+        "dec_max": cell_center.dec.deg + dec_half,
+    }
+
+
+def object_in_cell_mask(df: pd.DataFrame, cell_center: SkyCoord):
+    if df.empty:
+        return pd.Series(False, index=df.index)
+    b = cell_bounds(cell_center)
+    ra_mask = df["ra_deg"].apply(lambda x: ra_in_interval(x, b["ra_min"], b["ra_max"]))
+    dec_mask = (df["dec_deg"] >= b["dec_min"]) & (df["dec_deg"] <= b["dec_max"])
+    return ra_mask & dec_mask
+
+
+def count_in_cell(df: pd.DataFrame, cell_center: SkyCoord) -> int:
+    if df.empty:
+        return 0
+    return int(object_in_cell_mask(df, cell_center).sum())
+
+
+def galaxy_names_in_cell(df: pd.DataFrame, cell_center: SkyCoord) -> str:
+    if df.empty or "name" not in df.columns:
+        return ""
+    mask = object_in_cell_mask(df, cell_center)
+    names = (
+        df.loc[mask, "name"]
+        .fillna("")
+        .astype(str)
+        .str.strip()
+        .replace("", np.nan)
+        .dropna()
+        .drop_duplicates()
+        .tolist()
+    )
+    return "; ".join(names)
+
+
+def build_spatial_lookup(df: pd.DataFrame, include_names=False):
+    if df.empty or "ra_deg" not in df.columns or "dec_deg" not in df.columns:
+        lookup = {
+            "empty": True,
+            "ra": np.array([], dtype=float),
+            "dec": np.array([], dtype=float),
+            "positions": np.array([], dtype=int),
+        }
+        if include_names:
+            lookup["names"] = np.array([], dtype=object)
+        return lookup
+
+    ra = safe_numeric(df["ra_deg"]).to_numpy(dtype=float)
+    dec = safe_numeric(df["dec_deg"]).to_numpy(dtype=float)
+
+    valid = np.isfinite(ra) & np.isfinite(dec)
+    positions = np.nonzero(valid)[0]
+
+    if len(positions) == 0:
+        lookup = {
+            "empty": True,
+            "ra": np.array([], dtype=float),
+            "dec": np.array([], dtype=float),
+            "positions": np.array([], dtype=int),
+        }
+        if include_names:
+            lookup["names"] = np.array([], dtype=object)
+        return lookup
+
+    ra = np.mod(ra, 360.0)
+    order = np.argsort(dec[positions], kind="mergesort")
+    sorted_positions = positions[order]
+
+    lookup = {
+        "empty": False,
+        "ra": ra[sorted_positions],
+        "dec": dec[sorted_positions],
+        "positions": sorted_positions,
+    }
+
+    if include_names:
+        if "name" in df.columns:
+            names = df["name"].fillna("").astype(str).str.strip().to_numpy(dtype=object)
+        else:
+            names = np.array([""] * len(df), dtype=object)
+        lookup["names"] = names
+
+    return lookup
+
+
+def object_positions_in_bounds(lookup, bounds, preserve_original_order=False):
+    if lookup["empty"]:
+        return np.array([], dtype=int)
+
+    dec = lookup["dec"]
+    left = np.searchsorted(dec, bounds["dec_min"], side="left")
+    right = np.searchsorted(dec, bounds["dec_max"], side="right")
+
+    if right <= left:
+        return np.array([], dtype=int)
+
+    ra = lookup["ra"][left:right]
+
+    if bounds["ra_min"] <= bounds["ra_max"]:
+        ra_mask = (ra >= bounds["ra_min"]) & (ra <= bounds["ra_max"])
+    else:
+        ra_mask = (ra >= bounds["ra_min"]) | (ra <= bounds["ra_max"])
+
+    positions = lookup["positions"][left:right][ra_mask]
+
+    if preserve_original_order and len(positions) > 1:
+        positions = np.sort(positions)
+
+    return positions
+
+
+def galaxy_names_from_positions(lookup, positions):
+    if len(positions) == 0 or "names" not in lookup:
+        return ""
+
+    selected_names = lookup["names"][positions]
+    result = []
+    seen = set()
+
+    for raw_name in selected_names:
+        name = str(raw_name).strip()
+        if not name:
+            continue
+        if name in seen:
+            continue
+        seen.add(name)
+        result.append(name)
+
+    return "; ".join(result)
+
+
+def make_grid_for_constellation(bbox, constellation_abbr):
+    print("Creating the field grid in the selected constellation...")
+    dec_start = bbox["dec_min"] + CELL_SIZE_DEG / 2.0
+    dec_end = bbox["dec_max"] - CELL_SIZE_DEG / 2.0
+    if dec_start > dec_end:
+        raise RuntimeError("The declination frame is smaller than a single cell.")
+
+    candidate_ra = []
+    candidate_dec = []
+    dec_values = np.arange(dec_start, dec_end + 1e-9, STEP_DEG)
+    for dec in dec_values:
+        cos_dec = max(0.02, math.cos(math.radians(dec)))
+        ra_half = (CELL_SIZE_DEG / 2.0) / cos_dec
+        ra_step = STEP_DEG / cos_dec
+        ra_length = bbox["ra_length"]
+        if ra_length <= 2 * ra_half:
+            continue
+        offsets = np.arange(ra_half, ra_length - ra_half + 1e-9, ra_step)
+        ra_values = np.mod(bbox["ra_start"] + offsets, 360.0)
+        candidate_ra.extend(ra_values.tolist())
+        candidate_dec.extend([float(dec)] * len(ra_values))
+
+    cells = []
+    if candidate_ra:
+        coords = SkyCoord(
+            ra=np.asarray(candidate_ra, dtype=float) * u.deg,
+            dec=np.asarray(candidate_dec, dtype=float) * u.deg,
+            frame="icrs"
+        )
+        constellations = np.asarray(get_constellation_short(coords))
+        selected = constellations == constellation_abbr
+        cells = [cell for cell in coords[selected]]
+
+    print(f"Number of grid fields inside the constellation: {len(cells)}")
+    if not cells:
+        raise RuntimeError("No grid field was created inside the selected constellation.")
+    return cells
+
+
+def make_grid_for_bbox(bbox):
+    """
+    Creates the grid of overlapping fields in a regular rectangular frame.
+    Used for the 5° × 5° test field.
+    """
+
+    print("Creating the field grid in the test frame...")
+    dec_start = bbox["dec_min"] + CELL_SIZE_DEG / 2.0
+    dec_end = bbox["dec_max"] - CELL_SIZE_DEG / 2.0
+
+    if dec_start > dec_end:
+        raise RuntimeError("The declination frame is smaller than a single cell.")
+
+    cells = []
+    dec_values = np.arange(dec_start, dec_end + 1e-9, STEP_DEG)
+
+    for dec in dec_values:
+        cos_dec = max(0.02, math.cos(math.radians(dec)))
+        ra_half = (CELL_SIZE_DEG / 2.0) / cos_dec
+        ra_step = STEP_DEG / cos_dec
+        ra_length = bbox["ra_length"]
+
+        if ra_length <= 2 * ra_half:
+            continue
+
+        offsets = np.arange(ra_half, ra_length - ra_half + 1e-9, ra_step)
+
+        for offset in offsets:
+            ra = normalize_ra(bbox["ra_start"] + offset)
+            cells.append(SkyCoord(ra=ra * u.deg, dec=dec * u.deg, frame="icrs"))
+
+    print(f"Number of grid fields in the test frame: {len(cells)}")
+
+    if not cells:
+        raise RuntimeError("No grid field was created in the test frame.")
+
+    return cells
+
+
+def make_query_tiles(bbox):
+    tiles = []
+    dec = bbox["dec_min"]
+    while dec < bbox["dec_max"]:
+        dec1 = dec
+        dec2 = min(dec + QUERY_TILE_SIZE_DEG, bbox["dec_max"])
+        dec_center = (dec1 + dec2) / 2.0
+        height_deg = dec2 - dec1
+        cos_dec = max(0.02, math.cos(math.radians(dec_center)))
+        ra_tile_span = QUERY_TILE_SIZE_DEG / cos_dec
+        ra_length = bbox["ra_length"]
+        offset = 0.0
+        while offset < ra_length:
+            span = min(ra_tile_span, ra_length - offset)
+            ra_center = normalize_ra(bbox["ra_start"] + offset + span / 2.0)
+            tiles.append({
+                "center": SkyCoord(ra=ra_center * u.deg, dec=dec_center * u.deg, frame="icrs"),
+                "ra_span": span,
+                "height": height_deg,
+                "ra_min": normalize_ra(bbox["ra_start"] + offset),
+                "ra_max": normalize_ra(bbox["ra_start"] + offset + span),
+                "dec_min": dec1,
+                "dec_max": dec2,
+            })
+            offset += span
+        dec = dec2
+    print(f"Number of catalog-query tiles: {len(tiles)}")
+    return tiles
+
+
+def find_column(df: pd.DataFrame, candidates):
+    lower_map = {c.lower(): c for c in df.columns}
+    for name in candidates:
+        if name.lower() in lower_map:
+            return lower_map[name.lower()]
+    return None
+
+
+def find_ra_dec_columns(df: pd.DataFrame):
+    ra_candidates = ["_RAJ2000", "RAJ2000", "RA_ICRS", "RAdeg", "RA", "_RA.icrs"]
+    dec_candidates = ["_DEJ2000", "DEJ2000", "DE_ICRS", "DEdeg", "DEC", "Dec", "_DE.icrs"]
+    ra_col = find_column(df, ra_candidates)
+    dec_col = find_column(df, dec_candidates)
+    if ra_col is not None and dec_col is not None:
+        return ra_col, dec_col
+    possible_ra = []
+    possible_dec = []
+    for col in df.columns:
+        c = col.lower()
+        if "ra" in c and "err" not in c and "e_" not in c:
+            possible_ra.append(col)
+        if ("dec" in c or "dej" in c or "de_" in c) and "err" not in c and "e_" not in c:
+            possible_dec.append(col)
+    if possible_ra and possible_dec:
+        return possible_ra[0], possible_dec[0]
+    return None, None
+
+
+def find_best_mag_column(df: pd.DataFrame):
+    priority = ["BT", "BTmag", "B_T", "Bmag", "Vmag", "mag", "Mag"]
+    best_col = None
+    best_score = -1
+    for col in df.columns:
+        c = col.lower()
+        if c.startswith("e_") or "err" in c or "sigma" in c or "error" in c:
+            continue
+        if "note" in c or "flag" in c:
+            continue
+        is_candidate = False
+        priority_score = 0
+        for i, p in enumerate(priority):
+            if c == p.lower():
+                is_candidate = True
+                priority_score = 100 - i
+                break
+        if not is_candidate:
+            if "mag" in c:
+                is_candidate = True
+                priority_score = 20
+            elif c in ["bt", "btc", "bt0", "b_t"]:
+                is_candidate = True
+                priority_score = 50
+        if not is_candidate:
+            continue
+        values = safe_numeric(df[col])
+        n_valid = int(values.notna().sum())
+        if n_valid == 0:
+            continue
+        score = priority_score + n_valid / 1000.0
+        if score > best_score:
+            best_score = score
+            best_col = col
+    return best_col
+
+
+def find_galaxy_size_columns(df: pd.DataFrame):
+    result = []
+    for col in df.columns:
+        c = col.lower()
+        if c.startswith("e_") or c.startswith("u_") or c.startswith("q_") or "err" in c or "sigma" in c or "error" in c:
+            continue
+        if "pa" == c or "posang" in c or "mag" in c:
+            continue
+        if "ratio" in c or "axisratio" in c or "b/a" in c:
+            continue
+        if c in ["d25", "logd25", "logd", "logdiam", "logdiam25", "log_d25"] or ("log" in c and ("d25" in c or "diam" in c)):
+            result.append((col, "rc3_log_d25"))
+            continue
+        looks_like_diameter = (
+            "diam" in c or "diameter" in c or
+            "major" in c or "maj" in c or c in ["d", "a", "d1", "d2"]
+        )
+        if not looks_like_diameter:
+            continue
+        if "arcsec" in c or "asec" in c:
+            result.append((col, "arcsec"))
+        elif "deg" in c:
+            result.append((col, "deg"))
+        else:
+            result.append((col, "arcmin"))
+    return result
+
+
+def galaxy_size_arcmin_to_rc3_d25_log(size_arcmin):
+    value = pd.to_numeric(size_arcmin, errors="coerce")
+    if pd.isna(value) or float(value) <= 0:
+        return -np.inf
+    return math.log10(float(value) / 0.1)
+
+
+def galaxy_size_arcmin_from_rc3_d25_log(d25_log):
+    value = pd.to_numeric(d25_log, errors="coerce")
+    if pd.isna(value):
+        return np.nan
+    size_arcmin = 0.1 * (10 ** float(value))
+    if np.isfinite(size_arcmin) and size_arcmin > 0:
+        return size_arcmin
+    return np.nan
+
+
+def galaxy_size_values_from_row(row, size_columns):
+    sizes = []
+    for col, mode in size_columns:
+        value = pd.to_numeric(row.get(col), errors="coerce")
+        if pd.isna(value):
+            continue
+        if mode == "rc3_log_d25":
+            size_d25_log = float(value)
+            size_arcmin = galaxy_size_arcmin_from_rc3_d25_log(size_d25_log)
+        elif mode == "arcsec":
+            size_arcmin = float(value) / 60.0
+            size_d25_log = galaxy_size_arcmin_to_rc3_d25_log(size_arcmin)
+        elif mode == "deg":
+            size_arcmin = float(value) * 60.0
+            size_d25_log = galaxy_size_arcmin_to_rc3_d25_log(size_arcmin)
+        else:
+            size_arcmin = float(value)
+            size_d25_log = galaxy_size_arcmin_to_rc3_d25_log(size_arcmin)
+        if np.isfinite(size_arcmin) and size_arcmin > 0 and np.isfinite(size_d25_log):
+            sizes.append((size_arcmin, size_d25_log))
+    if not sizes:
+        return np.nan, np.nan
+    return max(sizes, key=lambda item: item[0])
+
+
+def galaxy_size_arcmin_from_row(row, size_columns):
+    size_arcmin, _size_d25_log = galaxy_size_values_from_row(row, size_columns)
+    return size_arcmin
+
+
+def deduplicate_by_position(df: pd.DataFrame, tolerance_arcsec=5.0):
+    if df.empty:
+        return df
+    tol_deg = tolerance_arcsec / 3600.0
+    df = df.copy()
+    df["_ra_key"] = (df["ra_deg"] / tol_deg).round().astype(int)
+    df["_dec_key"] = (df["dec_deg"] / tol_deg).round().astype(int)
+    df = df.drop_duplicates(subset=["_ra_key", "_dec_key"])
+    df = df.drop(columns=["_ra_key", "_dec_key"])
+    return df.reset_index(drop=True)
+
+
+
+# ============================================================
+# CATALOG TILE CACHE
+# ============================================================
+
+def status_to_gui(message, status_callback=None, is_error=False):
+    if is_error:
+        print(f"CACHE ERROR: {message}")
+        gui_message = f"CACHE ERROR: {message}"
+    else:
+        print(message)
+        gui_message = message
+
+    if status_callback is not None:
+        try:
+            status_callback(gui_message)
+        except Exception:
+            pass
+
+
+def round_float_for_cache(value, digits=8):
+    return round(float(value), digits)
+
+
+def rounded_bbox_for_cache(bbox):
+    return {
+        "ra_start": round_float_for_cache(bbox["ra_start"]),
+        "ra_end": round_float_for_cache(bbox["ra_end"]),
+        "ra_length": round_float_for_cache(bbox["ra_length"]),
+        "dec_min": round_float_for_cache(bbox["dec_min"]),
+        "dec_max": round_float_for_cache(bbox["dec_max"]),
+    }
+
+
+def safe_filename_part(value):
+    value = str(value)
+    value = re.sub(r"[^A-Za-z0-9_.-]+", "_", value)
+    return value.strip("_") or "area"
+
+
+def expected_cache_metadata(kind, selected_region, bbox, constellation_abbr):
+    metadata = {
+        "cache_version": DATA_CACHE_VERSION,
+        "kind": kind,
+        "region_mode": selected_region["mode"] if selected_region is not None else None,
+        "region_abbr": selected_region["abbr"] if selected_region is not None else None,
+        "region_name": selected_region["name"] if selected_region is not None else None,
+        "constellation_filter": constellation_abbr,
+        "bbox": rounded_bbox_for_cache(bbox),
+        "query_tile_size_deg": QUERY_TILE_SIZE_DEG,
+    }
+
+    if kind == "stars":
+        metadata["star_mag_limit"] = STAR_MAG_LIMIT
+
+    if kind == "galaxies":
+        metadata["vizier_catalogs_to_try"] = list(VIZIER_RC3_CATALOGS_TO_TRY)
+
+    return metadata
+
+
+def cache_metadata_matches(expected, saved):
+    return expected == saved
+
+
+def cache_paths_for_metadata(metadata, cache_options):
+    cache_dir = Path(cache_options.get("directory", DATA_CACHE_DIR))
+    cache_dir.mkdir(parents=True, exist_ok=True)
+
+    key = hashlib.sha1(
+        json.dumps(metadata, ensure_ascii=False, sort_keys=True).encode("utf-8")
+    ).hexdigest()[:16]
+
+    region = safe_filename_part(metadata.get("region_abbr", "area"))
+    kind = safe_filename_part(metadata.get("kind", "dane"))
+    stem = f"{region}_{kind}_{key}"
+
+    return cache_dir / f"{stem}.csv", cache_dir / f"{stem}.json"
+
+
+def load_cached_dataframe(kind, expected_metadata, cache_options, status_callback=None):
+    if not cache_options or not cache_options.get("load"):
+        return None
+
+    cache_dir = Path(cache_options.get("directory", DATA_CACHE_DIR))
+
+    if not cache_dir.exists():
+        status_to_gui(
+            f"Cache folder not found: '{cache_dir}'. Data will be downloaded from the internet.",
+            status_callback
+        )
+        return None
+
+    metadata_files = list(cache_dir.glob("*_*.json"))
+
+    if not metadata_files:
+        status_to_gui(
+            f"No saved tiles found in folder '{cache_dir}'. Data will be downloaded from the internet.",
+            status_callback
+        )
+        return None
+
+    for metadata_file in metadata_files:
+        try:
+            saved_metadata = json.loads(metadata_file.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+
+        if not cache_metadata_matches(expected_metadata, saved_metadata):
+            continue
+
+        csv_file = metadata_file.with_suffix(".csv")
+
+        if not csv_file.exists():
+            continue
+
+        try:
+            df = pd.read_csv(csv_file)
+        except Exception as e:
+            status_to_gui(
+                f"Could not load cache file '{csv_file}': {e}. Data will be downloaded from the internet.",
+                status_callback,
+                is_error=True
+            )
+            return None
+
+        status_to_gui(
+            f"Loaded tiles '{kind}' from disk: {csv_file}",
+            status_callback
+        )
+        return df
+
+    status_to_gui(
+        (
+            f"Saved tiles were found, but they do not match the selected area "
+            f"or parameters for '{kind}'. Data will be downloaded from the internet."
+        ),
+        status_callback,
+        is_error=True
+    )
+    return None
+
+
+def save_cached_dataframe(kind, df, metadata, cache_options, status_callback=None):
+    if not cache_options or not cache_options.get("save"):
+        return
+
+    csv_file, metadata_file = cache_paths_for_metadata(metadata, cache_options)
+
+    try:
+        df.to_csv(csv_file, index=False, encoding="utf-8-sig")
+        metadata_file.write_text(
+            json.dumps(metadata, ensure_ascii=False, indent=2, sort_keys=True),
+            encoding="utf-8"
+        )
+        status_to_gui(
+            f"Saved tiles '{kind}' to disk: {csv_file}",
+            status_callback
+        )
+    except Exception as e:
+        status_to_gui(
+            f"Could not save tiles '{kind}' to disk: {e}",
+            status_callback,
+            is_error=True
+        )
+
+
+# ============================================================
+# DOWNLOADING STARS FROM GAIA DR3
+# ============================================================
+
+def fetch_gaia_stars(bbox, constellation_abbr, selected_region=None, cache_options=None, status_callback=None) -> pd.DataFrame:
+    tiles = make_query_tiles(bbox)
+    frames = []
+    print("\nDownloading Gaia DR3 stars in tiles for the selected area...")
+    print("Note: for large constellations this may take a while.")
+
+    expected_metadata = expected_cache_metadata(
+        "stars",
+        selected_region,
+        bbox,
+        constellation_abbr
+    )
+
+    cached = load_cached_dataframe(
+        "stars",
+        expected_metadata,
+        cache_options,
+        status_callback
+    )
+
+    if cached is not None:
+        all_stars = cached
+    else:
+        for i, tile in enumerate(tiles, start=1):
+            print(f"  Gaia: tile {i}/{len(tiles)}")
+            ra_condition = ra_condition_for_adql(tile["ra_min"], tile["ra_max"])
+            query = f"""
+            SELECT source_id, ra, dec, phot_g_mean_mag
+            FROM gaiadr3.gaia_source
+            WHERE {ra_condition}
+              AND dec BETWEEN {tile["dec_min"]} AND {tile["dec_max"]}
+              AND phot_g_mean_mag <= {STAR_MAG_LIMIT}
+            """
+            try:
+                job = Gaia.launch_job_async(query, dump_to_file=False)
+                table = job.get_results()
+                df = table.to_pandas()
+                if not df.empty:
+                    df = df.rename(columns={"ra": "ra_deg", "dec": "dec_deg", "phot_g_mean_mag": "mag"})
+                    df["ra_deg"] = safe_numeric(df["ra_deg"])
+                    df["dec_deg"] = safe_numeric(df["dec_deg"])
+                    df["mag"] = safe_numeric(df["mag"])
+                    df = df.dropna(subset=["ra_deg", "dec_deg", "mag"])
+                    frames.append(df)
+                time.sleep(QUERY_SLEEP_SEC)
+            except Exception as e:
+                print(f"  Gaia error in tile {i}: {e}")
+
+        if not frames:
+            print("WARNING: Gaia returned no stars.")
+            return pd.DataFrame(columns=["source_id", "ra_deg", "dec_deg", "mag"])
+
+        all_stars = pd.concat(frames, ignore_index=True)
+
+        if "source_id" in all_stars.columns:
+            all_stars = all_stars.drop_duplicates(subset=["source_id"])
+
+        save_cached_dataframe(
+            "stars",
+            all_stars,
+            expected_metadata,
+            cache_options,
+            status_callback
+        )
+
+    if "source_id" in all_stars.columns:
+        all_stars = all_stars.drop_duplicates(subset=["source_id"])
+
+    all_stars["ra_deg"] = safe_numeric(all_stars["ra_deg"])
+    all_stars["dec_deg"] = safe_numeric(all_stars["dec_deg"])
+    all_stars["mag"] = safe_numeric(all_stars["mag"])
+    all_stars = all_stars.dropna(subset=["ra_deg", "dec_deg", "mag"])
+
+    all_stars = all_stars[all_stars["mag"] <= STAR_MAG_LIMIT].copy()
+    all_stars = filter_dataframe_to_constellation(all_stars, constellation_abbr)
+    if constellation_abbr is None:
+        print(f"Downloaded Gaia DR3 stars: {len(all_stars)}")
+    else:
+        print(f"Downloaded Gaia DR3 stars after constellation filtering: {len(all_stars)}")
+    return all_stars.reset_index(drop=True)
+
+
+# ============================================================
+# DOWNLOADING GALAXIES FROM VizieR / RC3
+# ============================================================
+
+def parse_vizier_rc3_tables(tables, catalog):
+    frames = []
+    for t_index, table in enumerate(tables):
+        df = table.to_pandas()
+        if df.empty:
+            continue
+        if DEBUG_VIZIER_COLUMNS:
+            print(f"    Table {t_index + 1}, number of records: {len(df)}")
+            print(f"    Columns: {list(df.columns)}")
+        ra_col, dec_col = find_ra_dec_columns(df)
+        mag_col = find_best_mag_column(df)
+        size_columns = find_galaxy_size_columns(df)
+        if ra_col is None or dec_col is None or mag_col is None or not size_columns:
+            continue
+        temp = pd.DataFrame()
+        temp["ra_deg"] = safe_numeric(df[ra_col])
+        temp["dec_deg"] = safe_numeric(df[dec_col])
+        temp["mag"] = safe_numeric(df[mag_col])
+        size_values = df.apply(lambda row: galaxy_size_values_from_row(row, size_columns), axis=1)
+        temp["size_arcmin"] = [item[0] for item in size_values]
+        temp["size_d25_log"] = [item[1] for item in size_values]
+        temp["source_catalog"] = catalog
+        name_col = None
+        for candidate in ["Name", "name", "PGC", "NGC", "IC", "Object"]:
+            if candidate in df.columns:
+                name_col = candidate
+                break
+        temp["name"] = df[name_col].astype(str) if name_col is not None else ""
+        temp = temp.dropna(subset=["ra_deg", "dec_deg", "mag", "size_arcmin", "size_d25_log"])
+        frames.append(temp)
+    return frames
+
+
+def fetch_vizier_rc3_galaxies(bbox, constellation_abbr, selected_region=None, cache_options=None, status_callback=None) -> pd.DataFrame:
+    tiles = make_query_tiles(bbox)
+    all_frames = []
+    print("\nDownloading VizieR / RC3 galaxies in tiles for the selected area...")
+    print("Applied filters: galaxy magnitude and minimum size.")
+
+    expected_metadata = expected_cache_metadata(
+        "galaxies",
+        selected_region,
+        bbox,
+        constellation_abbr
+    )
+
+    cached = load_cached_dataframe(
+        "galaxies",
+        expected_metadata,
+        cache_options,
+        status_callback
+    )
+
+    if cached is not None:
+        df_all = cached
+    else:
+        for i, tile in enumerate(tiles, start=1):
+            print(f"  VizieR: tile {i}/{len(tiles)}")
+            for catalog in VIZIER_RC3_CATALOGS_TO_TRY:
+                try:
+                    viz = Vizier(columns=["**", "_RAJ2000", "_DEJ2000"], row_limit=-1)
+                    tables = viz.query_region(tile["center"], width=tile["ra_span"] * u.deg, height=tile["height"] * u.deg, catalog=catalog)
+                    if tables is None or len(tables) == 0:
+                        continue
+                    frames = parse_vizier_rc3_tables(tables, catalog)
+                    if frames:
+                        all_frames.extend(frames)
+                        break
+                except Exception as e:
+                    print(f"    VizieR error for {catalog} in tile {i}: {e}")
+            time.sleep(QUERY_SLEEP_SEC)
+
+        if not all_frames:
+            print("WARNING: Could not download RC3 galaxies with recognized magnitude and size.")
+            return pd.DataFrame(columns=["ra_deg", "dec_deg", "mag", "size_arcmin", "source_catalog", "name"])
+
+        df_all = pd.concat(all_frames, ignore_index=True)
+
+        save_cached_dataframe(
+            "galaxies",
+            df_all,
+            expected_metadata,
+            cache_options,
+            status_callback
+        )
+
+    for column in ["ra_deg", "dec_deg", "mag", "size_arcmin", "size_d25_log"]:
+        if column in df_all.columns:
+            df_all[column] = safe_numeric(df_all[column])
+
+    if "size_d25_log" not in df_all.columns:
+        df_all["size_d25_log"] = safe_numeric(df_all["size_arcmin"])
+        df_all["size_arcmin"] = df_all["size_d25_log"].apply(galaxy_size_arcmin_from_rc3_d25_log)
+
+    galaxy_min_size_d25_log = galaxy_size_arcmin_to_rc3_d25_log(GALAXY_MIN_SIZE_ARCMIN)
+
+    df_all = df_all[df_all["mag"] <= GALAXY_MAG_LIMIT].copy()
+    df_all = df_all.dropna(subset=["size_arcmin", "size_d25_log"]).copy()
+    df_all = df_all[df_all["size_d25_log"] > galaxy_min_size_d25_log].copy()
+    df_all = deduplicate_by_position(df_all, tolerance_arcsec=5.0)
+    df_all = filter_dataframe_to_constellation(df_all, constellation_abbr)
+
+    if constellation_abbr is None:
+        print(
+            f"Downloaded RC3 galaxies after filters: "
+            f"mag <= {GALAXY_MAG_LIMIT}, size > {GALAXY_MIN_SIZE_ARCMIN}' "
+            f"(RC3 D25 > {galaxy_min_size_d25_log:.3f}): {len(df_all)}"
+        )
+    else:
+        print(
+            f"Downloaded RC3 galaxies after filters: "
+            f"mag <= {GALAXY_MAG_LIMIT}, size > {GALAXY_MIN_SIZE_ARCMIN}' "
+            f"(RC3 D25 > {galaxy_min_size_d25_log:.3f}) "
+            f"and constellation {constellation_abbr}: {len(df_all)}"
+        )
+    if len(df_all) > 0:
+        print("All galaxies used in calculations and their magnitudes:")
+        cols_to_show = ["name", "ra_deg", "dec_deg", "mag", "size_arcmin", "source_catalog"]
+        print(df_all[cols_to_show].sort_values("mag").to_string(index=False))
+    return df_all.reset_index(drop=True)
+
+
+# ============================================================
+# PROBOLISM CLASSES
+# ============================================================
+
+def positive_baseline(series: pd.Series) -> float:
+    s = pd.to_numeric(series, errors="coerce").fillna(0)
+    median_all = float(s.median())
+    if median_all > 0:
+        return median_all
+    positive = s[s > 0]
+    if len(positive) > 0:
+        return float(positive.median())
+    return 1.0
+
+
+def assign_classes(df: pd.DataFrame, scoring_mode: dict) -> pd.DataFrame:
+    df = df.copy()
+    star_base = positive_baseline(df["g_star"])
+    gal_base = positive_baseline(df["g_gal"])
+
+    star_power = scoring_mode["star_power"]
+    gal_power = scoring_mode["gal_power"]
+
+    df["P_raw"] = (df["g_star"] ** star_power) * (df["g_gal"] ** gal_power)
+    df["P_norm"] = ((df["g_star"] / star_base) ** star_power) * ((df["g_gal"] / gal_base) ** gal_power)
+    p90 = df["P_norm"].quantile(0.90)
+    p95 = df["P_norm"].quantile(0.95)
+    star75 = df["g_star"].quantile(0.75)
+    gal75 = df["g_gal"].quantile(0.75)
+    classes = []
+    for _, row in df.iterrows():
+        if row["g_star"] < MIN_STARS_FOR_PROBOLISM or row["g_gal"] < MIN_GALAXIES_FOR_PROBOLISM:
+            classes.append("none")
+            continue
+        if row["P_norm"] >= p95 and row["g_star"] >= star75 and row["g_gal"] >= gal75:
+            classes.append("A")
+        elif row["P_norm"] >= p90 and row["g_star"] >= star_base and row["g_gal"] >= gal_base:
+            classes.append("B")
+        elif row["P_norm"] >= p90:
+            classes.append("C")
+        else:
+            classes.append("none")
+    df["klasa"] = classes
+    print("\nClassification thresholds:")
+    print(f"  scoring mode = {scoring_mode['name']}")
+    print(f"  minimum stars = {MIN_STARS_FOR_PROBOLISM}")
+    print(f"  minimum galaxies = {MIN_GALAXIES_FOR_PROBOLISM}")
+    print(f"  star_base = {star_base:.3f}")
+    print(f"  gal_base  = {gal_base:.3f}")
+    print(f"  P_norm 90 percentyl = {p90:.3f}")
+    print(f"  P_norm 95 percentyl = {p95:.3f}")
+    print(f"  g_star 75 percentyl = {star75:.3f}")
+    print(f"  g_gal 75 percentyl  = {gal75:.3f}")
+    return df.sort_values("P_norm", ascending=False).reset_index(drop=True)
+
+
+def parse_galaxy_list(galaxy_text) -> set:
+    if pd.isna(galaxy_text):
+        return set()
+    return {item.strip() for item in str(galaxy_text).split(";") if item.strip()}
+
+
+def select_candidates_without_repeated_galaxy_pairs(candidates: pd.DataFrame) -> pd.DataFrame:
+    if candidates.empty or "galaxies" not in candidates.columns:
+        return candidates
+    selected_rows = []
+    selected_galaxy_sets = []
+    candidates_sorted = candidates.sort_values("P_norm", ascending=False).reset_index(drop=True)
+    for _, row in candidates_sorted.iterrows():
+        this_galaxies = parse_galaxy_list(row["galaxies"])
+        overlaps_existing = any(len(this_galaxies.intersection(existing)) >= 2 for existing in selected_galaxy_sets)
+        if not overlaps_existing:
+            selected_rows.append(row)
+            selected_galaxy_sets.append(this_galaxies)
+    if not selected_rows:
+        return candidates_sorted.iloc[0:0].copy()
+    return pd.DataFrame(selected_rows).reset_index(drop=True)
+
+
+
+# ============================================================
+# OUTPUT FILE NAMES
+# ============================================================
+
+def compact_number_for_filename(value):
+    text_value = f"{float(value):.6f}".rstrip("0").rstrip(".")
+    return text_value.replace(".", "p").replace("-", "m")
+
+
+def magnitude_part_for_filename(value):
+    return compact_number_for_filename(value)
+
+
+def tenth_part_for_filename(value):
+    rounded_to_tenth = round(float(value) * 10) / 10
+
+    if abs(float(value) - rounded_to_tenth) < 1e-9:
+        return f"{int(round(float(value) * 10)):02d}"
+
+    return compact_number_for_filename(value)
+
+
+def hundredth_part_for_filename(value):
+    rounded_to_hundredth = round(float(value) * 100) / 100
+
+    if abs(float(value) - rounded_to_hundredth) < 1e-9:
+        return f"{int(round(float(value) * 100)):03d}"
+
+    return compact_number_for_filename(value)
+
+
+def current_settings_filename_tag():
+    return (
+        f"star{magnitude_part_for_filename(STAR_MAG_LIMIT)}_"
+        f"gal{magnitude_part_for_filename(GALAXY_MAG_LIMIT)}_"
+        f"size{tenth_part_for_filename(GALAXY_MIN_SIZE_ARCMIN)}_"
+        f"cell{hundredth_part_for_filename(CELL_SIZE_DEG)}_"
+        f"step{hundredth_part_for_filename(STEP_DEG)}"
+    )
+
+
+# ============================================================
+# ANALYSIS
+# ============================================================
+
+def analyze(selected_region, scoring_mode, cache_options=None, status_callback=None):
+    abbr = selected_region["abbr"]
+    name = selected_region["name"]
+
+    print("============================================================")
+    print("CATALOG OF PROBOLISM CANDIDATES IN THE SELECTED AREA")
+    print("============================================================")
+    print(f"Area: {name} [{abbr}]")
+    print(f"Scoring mode: {scoring_mode['name']}")
+    print(f"Field size: {CELL_SIZE_DEG}° × {CELL_SIZE_DEG}°")
+    print(f"Grid step: {STEP_DEG}°")
+    print(f"Gaia star magnitude limit: G <= {STAR_MAG_LIMIT}")
+    print(f"RC3 galaxy magnitude limit: mag <= {GALAXY_MAG_LIMIT}")
+    print(f"Minimum galaxy size: > {GALAXY_MIN_SIZE_ARCMIN} arcmin")
+    print(f"Minimum number of stars in a candidate: {MIN_STARS_FOR_PROBOLISM}")
+    print(f"Minimum number of galaxies in a candidate: {MIN_GALAXIES_FOR_PROBOLISM}")
+
+    if selected_region["mode"] == "test_field":
+        print("Mode: 5° × 5° test field centered on NGC 4440.")
+        bbox = compute_test_field_bbox(
+            selected_region["center_radec"],
+            selected_region["field_size_deg"]
+        )
+        cells = make_grid_for_bbox(bbox)
+        constellation_filter = None
+    elif selected_region["mode"] == "messier_field":
+        print("Mode: square field centered on a Messier catalog object.")
+        bbox = compute_test_field_bbox(
+            selected_region["center_radec"],
+            selected_region["field_size_deg"]
+        )
+        cells = make_grid_for_bbox(bbox)
+        constellation_filter = None
+    elif selected_region["mode"] == "custom_rectangle":
+        print("Mode: custom rectangle from two corner coordinates.")
+        bbox = dict(selected_region["bbox"])
+        print(
+            "Custom-rectangle bounding box: "
+            f"RA {ra_deg_to_hms(bbox['ra_start'])} -- {ra_deg_to_hms(bbox['ra_end'])}, "
+            f"Dec {dec_deg_to_dms(bbox['dec_min'])} -- {dec_deg_to_dms(bbox['dec_max'])}"
+        )
+        cells = make_grid_for_bbox(bbox)
+        constellation_filter = None
+    else:
+        print("Mode: constellation according to Astropy IAU boundaries.")
+        bbox = compute_constellation_bbox(abbr)
+        cells = make_grid_for_constellation(bbox, abbr)
+        constellation_filter = abbr
+
+    stars = fetch_gaia_stars(bbox, constellation_filter, selected_region, cache_options, status_callback)
+    galaxies = fetch_vizier_rc3_galaxies(bbox, constellation_filter, selected_region, cache_options, status_callback)
+
+    print("Preparing fast spatial indexes for stars and galaxies...")
+    stars_lookup = build_spatial_lookup(stars)
+    galaxies_lookup = build_spatial_lookup(galaxies, include_names=True)
+
+    print("Converting current-epoch coordinates for all grid fields...")
+    current_ra_values, current_dec_values = current_epoch_strings_for_cells(cells)
+
+    print("Counting stars and galaxies in grid fields...")
+    rows = []
+    for cell_index, cell in enumerate(cells):
+        bounds = cell_bounds(cell)
+        star_positions = object_positions_in_bounds(stars_lookup, bounds)
+        galaxy_positions = object_positions_in_bounds(
+            galaxies_lookup,
+            bounds,
+            preserve_original_order=True
+        )
+        galaxy_names = galaxy_names_from_positions(galaxies_lookup, galaxy_positions)
+
+        rows.append({
+            "center_RA": ra_deg_to_hms(cell.ra.deg),
+            "center_DEC": dec_deg_to_dms(cell.dec.deg),
+            "center_RA_current": current_ra_values[cell_index],
+            "center_DEC_current": current_dec_values[cell_index],
+            "g_star": int(len(star_positions)),
+            "g_gal": int(len(galaxy_positions)),
+            "galaxies": galaxy_names,
+        })
+
+    df = pd.DataFrame(rows)
+    df = assign_classes(df, scoring_mode)
+    df = df[[
+        "center_RA", "center_DEC", "center_RA_current", "center_DEC_current",
+        "g_star", "g_gal", "galaxies", "P_raw", "P_norm", "klasa"
+    ]]
+    candidates = df[df["klasa"] != "none"].copy()
+    candidates = select_candidates_without_repeated_galaxy_pairs(candidates)
+
+    print("\nRESULTS — probolism candidates:")
+    if candidates.empty:
+        print("No candidates under the current definition.")
+    else:
+        print(candidates.to_string(index=False))
+
+    output_id = f"{abbr}_{scoring_mode['id']}"
+    settings_id = current_settings_filename_tag()
+    output_all = OUTPUT_ALL_CSV_TEMPLATE.format(abbr=output_id, settings=settings_id)
+    output_candidates = OUTPUT_CANDIDATES_CSV_TEMPLATE.format(abbr=output_id, settings=settings_id)
+    df.to_csv(output_all, index=False, encoding="utf-8-sig")
+    candidates.to_csv(output_candidates, index=False, encoding="utf-8-sig")
+    print(f"\nSaved full table: {output_all}")
+    print(f"Saved candidates:   {output_candidates}")
+
+
+
+# ============================================================
+# MAIN GUI WINDOW
+# ============================================================
+
+class ProbolismsApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Probolizmy_v1.52 — Probolisms by piotrs")
+        self.root.geometry("980x720")
+        self.root.minsize(900, 660)
+
+        self.worker_thread = None
+        self.calculations_running = False
+        self.spinner_frames = ["|", "/", "-", "\\"]
+        self.spinner_index = 0
+
+        self.region_options = self.build_region_options()
+        self.messier_options = self.build_messier_options()
+        self.scoring_options = self.build_scoring_options()
+        try:
+            self.preview_image = tk.PhotoImage(data=PROBOLISM_IMAGE_BASE64, format="gif")
+        except tk.TclError:
+            self.preview_image = None
+        self.cache_dir_var = tk.StringVar(value=DATA_CACHE_DIR)
+
+        self.create_widgets()
+        self.apply_defaults()
+
+    def build_region_options(self):
+        options = []
+
+        label = f"{TEST_FIELD_NAME} — 5° × 5° test field, centered on NGC 4440"
+        options.append((
+            label,
+            {
+                "mode": "test_field",
+                "abbr": TEST_FIELD_ABBR,
+                "name": TEST_FIELD_NAME,
+                "center_radec": TEST_FIELD_CENTER_RA_DEC,
+                "field_size_deg": TEST_FIELD_SIZE_DEG,
+            }
+        ))
+
+        for abbr, name in CONSTELLATIONS:
+            label = f"{name} [{abbr}]"
+            options.append((
+                label,
+                {
+                    "mode": "constellation",
+                    "abbr": abbr,
+                    "name": name,
+                }
+            ))
+
+        return options
+
+    def build_messier_options(self):
+        return [
+            (
+                f"{item['id']} — {item['name']}",
+                dict(item)
+            )
+            for item in MESSIER_OBJECTS
+        ]
+
+    def build_scoring_options(self):
+        return {
+            "a": {
+                "id": "linear",
+                "name": "linear version",
+                "star_power": 1,
+                "gal_power": 1,
+                "label": "(a) linear: P_raw = g_star × g_gal",
+            },
+            "b": {
+                "id": "galaxy_square",
+                "name": "galaxy-square version",
+                "star_power": 1,
+                "gal_power": 2,
+                "label": "(b) galaxy square: P_raw = g_star × g_gal²",
+            },
+            "c": {
+                "id": "star_and_galaxy_square",
+                "name": "star-and-galaxy-square version",
+                "star_power": 2,
+                "gal_power": 2,
+                "label": "(c) star and galaxy square: P_raw = g_star² × g_gal²",
+            },
+        }
+
+    def create_widgets(self):
+        main = ttk.Frame(self.root, padding=12)
+        main.pack(fill="both", expand=True)
+
+        top = ttk.Frame(main)
+        top.pack(fill="x")
+
+        title = ttk.Label(
+            top,
+            text="Probolisms by piotrs",
+            font=("Segoe UI", 20, "bold")
+        )
+        title.pack(side="left", anchor="w")
+
+        self.spinner_label = ttk.Label(
+            top,
+            text="",
+            width=34,
+            anchor="w",
+            font=("Consolas", 11)
+        )
+        self.spinner_label.pack(side="left", anchor="w", padx=(18, 0))
+
+        self.help_button = ttk.Button(
+            top,
+            text="user guide",
+            command=self.show_help
+        )
+        self.help_button.pack(side="right", anchor="e")
+
+        info = ttk.Label(
+            main,
+            text=(
+                "Choose parameters and press “Start calculations”. "
+                "Program messages will still be printed in the terminal window."
+            )
+        )
+        info.pack(anchor="w", pady=(2, 8))
+
+        content = ttk.Frame(main)
+        content.pack(fill="both", expand=True)
+
+        left = ttk.Frame(content)
+        left.pack(side="left", fill="both", expand=True, padx=(0, 12))
+
+        right = ttk.Frame(content)
+        right.pack(side="left", fill="both", expand=True)
+
+        # Option #1
+        field_frame = ttk.LabelFrame(left, text="Option #1: filed size in degrees")
+        field_frame.pack(fill="x", pady=5)
+        self.cell_size_var = tk.DoubleVar(value=DEFAULT_CELL_SIZE_DEG)
+        for value, label in [
+            (0.3, "0.3 × 0.3"),
+            (0.5, "0.5 × 0.5"),
+            (0.7, "0.7 × 0.7"),
+            (1.0, "1 × 1"),
+            (2.0, "2 × 2"),
+            (4.0, "4 × 4"),
+        ]:
+            ttk.Radiobutton(
+                field_frame,
+                text=label,
+                variable=self.cell_size_var,
+                value=value
+            ).pack(side="left", padx=6, pady=6)
+
+        # Option #2
+        step_frame = ttk.LabelFrame(left, text="Option #2: search step in degrees")
+        step_frame.pack(fill="x", pady=5)
+        self.step_var = tk.DoubleVar(value=DEFAULT_STEP_DEG)
+        for value, label in [
+            (0.1, "0.1"),
+            (0.2, "0.2"),
+            (0.5, "0.5"),
+            (0.7, "0.7"),
+            (1.0, "1.0"),
+        ]:
+            ttk.Radiobutton(
+                step_frame,
+                text=label,
+                variable=self.step_var,
+                value=value
+            ).pack(side="left", padx=6, pady=6)
+
+        numeric_frame = ttk.LabelFrame(left, text="Options #3–#7: numeric values")
+        numeric_frame.pack(fill="x", pady=5)
+
+        self.star_mag_var = tk.StringVar(value=str(DEFAULT_STAR_MAG_LIMIT))
+        self.galaxy_mag_var = tk.StringVar(value=str(DEFAULT_GALAXY_MAG_LIMIT))
+        self.galaxy_size_var = tk.StringVar(value=str(DEFAULT_GALAXY_MIN_SIZE_ARCMIN))
+        self.min_galaxies_var = tk.StringVar(value=str(DEFAULT_MIN_GALAXIES_FOR_PROBOLISM))
+        self.min_stars_var = tk.StringVar(value=str(DEFAULT_MIN_STARS_FOR_PROBOLISM))
+
+        self.add_entry_row(
+            numeric_frame,
+            0,
+            "Option #3: Gaia G star magnitude limit, 0...20",
+            self.star_mag_var
+        )
+        self.add_entry_row(
+            numeric_frame,
+            1,
+            "Option #4: RC3 galaxy magnitude limit, 0...20",
+            self.galaxy_mag_var
+        )
+        self.add_entry_row(
+            numeric_frame,
+            2,
+            "Option #5: minimum galaxy size in arcminutes",
+            self.galaxy_size_var
+        )
+        self.add_entry_row(
+            numeric_frame,
+            3,
+            "Option #6: minimum number of galaxies in a probolism, 1...100",
+            self.min_galaxies_var
+        )
+        self.add_entry_row(
+            numeric_frame,
+            4,
+            "Option #7: minimum number of stars in a probolism, 1...100",
+            self.min_stars_var
+        )
+
+        # Option #8
+        defaults_frame = ttk.LabelFrame(left, text="Option #8: default values")
+        defaults_frame.pack(fill="x", pady=5)
+        ttk.Button(
+            defaults_frame,
+            text="Use default values",
+            command=self.apply_defaults
+        ).pack(anchor="w", padx=8, pady=8)
+
+        default_text = (
+            "Field size: 0.3° × 0.3°\n"
+            "Grid step: 0.1°\n"
+            "Gaia star magnitude limit: G <= 12.0\n"
+            "RC3 galaxy magnitude limit: mag <= 14.0\n"
+            "Minimum galaxy size: > 0.8 arcmin\n"
+            "Minimum number of stars in a candidate: 3\n"
+            "Minimum number of galaxies in a candidate: 3"
+        )
+        ttk.Label(defaults_frame, text=default_text, justify="left").pack(anchor="w", padx=8, pady=(0, 8))
+
+        cache_frame = ttk.LabelFrame(left, text="Catalog tiles: save / load from disk")
+        cache_frame.pack(fill="x", pady=5)
+        self.load_cache_var = tk.BooleanVar(value=True)
+        self.save_cache_var = tk.BooleanVar(value=True)
+        ttk.Checkbutton(
+            cache_frame,
+            text="Load catalog tiles from disk if they match the selected area and parameters",
+            variable=self.load_cache_var
+        ).pack(anchor="w", padx=8, pady=(6, 2))
+        ttk.Checkbutton(
+            cache_frame,
+            text="Save catalog tiles downloaded from astronomical catalogs to disk",
+            variable=self.save_cache_var
+        ).pack(anchor="w", padx=8, pady=2)
+
+        cache_path_frame = ttk.Frame(cache_frame)
+        cache_path_frame.pack(fill="x", padx=8, pady=(2, 6))
+        ttk.Label(
+            cache_path_frame,
+            text="Tiles folder:"
+        ).pack(side="left")
+        ttk.Entry(
+            cache_path_frame,
+            textvariable=self.cache_dir_var
+        ).pack(side="left", fill="x", expand=True, padx=(6, 6))
+        ttk.Button(
+            cache_path_frame,
+            text="Choose folder...",
+            command=self.choose_cache_directory
+        ).pack(side="left")
+
+        # Option #9
+        region_frame = ttk.LabelFrame(right, text="Option #9: choose search area")
+        region_frame.pack(fill="x", pady=5)
+
+        self.area_notebook = ttk.Notebook(region_frame)
+        self.area_notebook.pack(fill="x", padx=8, pady=8)
+
+        predefined_tab = ttk.Frame(self.area_notebook)
+        messier_tab = ttk.Frame(self.area_notebook)
+        custom_tab = ttk.Frame(self.area_notebook)
+
+        self.area_notebook.add(predefined_tab, text="Constellation")
+        self.area_notebook.add(messier_tab, text="Messier")
+        self.area_notebook.add(custom_tab, text="Rectangle")
+
+        self.region_labels = [label for label, _region in self.region_options]
+        self.region_var = tk.StringVar(value=self.region_labels[0])
+        self.region_combo = ttk.Combobox(
+            predefined_tab,
+            textvariable=self.region_var,
+            values=self.region_labels,
+            state="readonly",
+            height=25
+        )
+        self.region_combo.pack(fill="x", padx=6, pady=8)
+
+        self.messier_labels = [label for label, _item in self.messier_options]
+        self.messier_var = tk.StringVar(value=self.messier_labels[0])
+        self.messier_combo = ttk.Combobox(
+            messier_tab,
+            textvariable=self.messier_var,
+            values=self.messier_labels,
+            state="readonly",
+            height=20
+        )
+        self.messier_combo.pack(fill="x", padx=6, pady=(8, 4))
+
+        messier_size_frame = ttk.Frame(messier_tab)
+        messier_size_frame.pack(fill="x", padx=6, pady=(0, 8))
+        ttk.Label(messier_size_frame, text="Field size").pack(side="left")
+        self.messier_field_size_var = tk.StringVar(value="5")
+        self.messier_field_size_combo = ttk.Combobox(
+            messier_size_frame,
+            textvariable=self.messier_field_size_var,
+            values=[str(value) for value in MESSIER_FIELD_SIZE_OPTIONS],
+            state="readonly",
+            width=5
+        )
+        self.messier_field_size_combo.pack(side="left", padx=(6, 3))
+        ttk.Label(messier_size_frame, text="degrees").pack(side="left")
+
+        self.custom_ra1_var = tk.StringVar(value="12h25m00s")
+        self.custom_dec1_var = tk.StringVar(value="+10d00m00s")
+        self.custom_ra2_var = tk.StringVar(value="12h35m00s")
+        self.custom_dec2_var = tk.StringVar(value="+13d00m00s")
+
+        ttk.Label(custom_tab, text="RA 1").grid(row=0, column=0, sticky="w", padx=(6, 3), pady=(8, 2))
+        ttk.Entry(custom_tab, textvariable=self.custom_ra1_var, width=14).grid(row=0, column=1, sticky="ew", padx=(0, 6), pady=(8, 2))
+        ttk.Label(custom_tab, text="DEC 1").grid(row=0, column=2, sticky="w", padx=(0, 3), pady=(8, 2))
+        ttk.Entry(custom_tab, textvariable=self.custom_dec1_var, width=14).grid(row=0, column=3, sticky="ew", padx=(0, 6), pady=(8, 2))
+        ttk.Label(custom_tab, text="RA 2").grid(row=1, column=0, sticky="w", padx=(6, 3), pady=(2, 8))
+        ttk.Entry(custom_tab, textvariable=self.custom_ra2_var, width=14).grid(row=1, column=1, sticky="ew", padx=(0, 6), pady=(2, 8))
+        ttk.Label(custom_tab, text="DEC 2").grid(row=1, column=2, sticky="w", padx=(0, 3), pady=(2, 8))
+        ttk.Entry(custom_tab, textvariable=self.custom_dec2_var, width=14).grid(row=1, column=3, sticky="ew", padx=(0, 6), pady=(2, 8))
+        custom_tab.columnconfigure(1, weight=1)
+        custom_tab.columnconfigure(3, weight=1)
+
+        # Option #10
+        scoring_frame = ttk.LabelFrame(right, text="Option #10: choose scoring mode")
+        scoring_frame.pack(fill="x", pady=5)
+        self.scoring_var = tk.StringVar(value="b")
+
+        scoring_descriptions = {
+            "a": (
+                "(a) linear version:\n"
+                "    P_raw  = g_star × g_gal\n"
+                "    P_norm = (g_star / star_base) × (g_gal / gal_base)"
+            ),
+            "b": (
+                "(b) galaxy-square version:\n"
+                "    P_raw  = g_star × g_gal²\n"
+                "    P_norm = (g_star / star_base) × (g_gal / gal_base)²"
+            ),
+            "c": (
+                "(c) star-and-galaxy-square version:\n"
+                "    P_raw  = g_star² × g_gal²\n"
+                "    P_norm = (g_star / star_base)² × (g_gal / gal_base)²"
+            ),
+        }
+
+        for key in ["a", "b", "c"]:
+            ttk.Radiobutton(
+                scoring_frame,
+                text=scoring_descriptions[key],
+                variable=self.scoring_var,
+                value=key
+            ).pack(anchor="w", padx=8, pady=6)
+
+        buttons = ttk.Frame(right)
+        buttons.pack(fill="x", pady=12)
+
+        self.start_button = ttk.Button(
+            buttons,
+            text="Start calculations",
+            command=self.start_calculations
+        )
+        self.start_button.pack(side="left", padx=(0, 8))
+
+        self.close_button = ttk.Button(
+            buttons,
+            text="Close",
+            command=self.root.destroy
+        )
+        self.close_button.pack(side="right")
+
+        self.status_label = ttk.Label(
+            right,
+            text="Ready to start calculations.",
+            wraplength=420
+        )
+        self.status_label.pack(fill="x", pady=5)
+
+        image_frame = ttk.Frame(right)
+        image_frame.pack(fill="both", expand=True, pady=(8, 0))
+        if self.preview_image is not None:
+            self.image_label = ttk.Label(image_frame, image=self.preview_image)
+            self.image_label.pack(side="bottom", anchor="se")
+
+    def add_entry_row(self, parent, row, label, variable):
+        ttk.Label(parent, text=label).grid(row=row, column=0, sticky="w", padx=8, pady=4)
+
+        entry = ttk.Entry(parent, textvariable=variable, width=12)
+        entry.grid(row=row, column=1, sticky="w", padx=8, pady=4)
+        entry.bind("<Return>", lambda _event: self.validate_inputs(show_success=True))
+
+        parent.columnconfigure(0, weight=1)
+
+    def apply_defaults(self):
+        self.cell_size_var.set(DEFAULT_CELL_SIZE_DEG)
+        self.step_var.set(DEFAULT_STEP_DEG)
+        self.star_mag_var.set(str(DEFAULT_STAR_MAG_LIMIT))
+        self.galaxy_mag_var.set(str(DEFAULT_GALAXY_MAG_LIMIT))
+        self.galaxy_size_var.set(str(DEFAULT_GALAXY_MIN_SIZE_ARCMIN))
+        self.min_stars_var.set(str(DEFAULT_MIN_STARS_FOR_PROBOLISM))
+        self.min_galaxies_var.set(str(DEFAULT_MIN_GALAXIES_FOR_PROBOLISM))
+        self.scoring_var.set("b")
+
+    def parse_float_range(self, label, value, min_value, max_value):
+        try:
+            parsed = float(str(value).replace(",", "."))
+        except ValueError:
+            raise ValueError(f"{label}: enter a number.")
+
+        if parsed < min_value or parsed > max_value:
+            raise ValueError(f"{label}: value must be in the range {min_value}...{max_value}.")
+
+        return parsed
+
+    def parse_int_range(self, label, value, min_value, max_value):
+        try:
+            parsed_float = float(str(value).replace(",", "."))
+        except ValueError:
+            raise ValueError(f"{label}: enter an integer.")
+
+        parsed = int(parsed_float)
+
+        if parsed != parsed_float:
+            raise ValueError(f"{label}: enter an integer.")
+
+        if parsed < min_value or parsed > max_value:
+            raise ValueError(f"{label}: value must be in the range {min_value}...{max_value}.")
+
+        return parsed
+
+    def validate_inputs(self, show_success=False):
+        values = {
+            "cell_size": float(self.cell_size_var.get()),
+            "step": float(self.step_var.get()),
+            "star_mag": self.parse_float_range(
+                "Star magnitude limit",
+                self.star_mag_var.get(),
+                0.0,
+                20.0
+            ),
+            "galaxy_mag": self.parse_float_range(
+                "Galaxy magnitude limit",
+                self.galaxy_mag_var.get(),
+                0.0,
+                20.0
+            ),
+            "galaxy_size": self.parse_float_range(
+                "Minimum galaxy size in arcminutes",
+                self.galaxy_size_var.get(),
+                0.0,
+                1000.0
+            ),
+            "min_galaxies": self.parse_int_range(
+                "Minimum number of galaxies in a probolism",
+                self.min_galaxies_var.get(),
+                1,
+                100
+            ),
+            "min_stars": self.parse_int_range(
+                "Minimum number of stars in a probolism",
+                self.min_stars_var.get(),
+                1,
+                100
+            ),
+        }
+
+        if show_success:
+            self.status_label.config(text="Numeric values are valid.")
+
+        return values
+
+    def get_selected_region(self):
+        try:
+            selected_tab = self.area_notebook.index("current")
+        except tk.TclError:
+            selected_tab = 0
+
+        if selected_tab == 0:
+            selected_label = self.region_var.get()
+
+            for label, region in self.region_options:
+                if label == selected_label:
+                    return dict(region)
+
+            raise ValueError("No valid constellation or test-field area selected.")
+
+        if selected_tab == 1:
+            selected_label = self.messier_var.get()
+
+            for label, item in self.messier_options:
+                if label == selected_label:
+                    field_size_deg = int(self.messier_field_size_var.get())
+                    return {
+                        "mode": "messier_field",
+                        "abbr": f"{item['id']}_{field_size_deg}x{field_size_deg}",
+                        "name": f"{item['id']} {item['name']}, {field_size_deg}° × {field_size_deg}°",
+                        "center_radec": f"{item['ra']} {item['dec']}",
+                        "field_size_deg": float(field_size_deg),
+                    }
+
+            raise ValueError("No valid Messier object selected.")
+
+        if selected_tab == 2:
+            bbox = compute_rectangle_bbox_from_corners(
+                self.custom_ra1_var.get(),
+                self.custom_dec1_var.get(),
+                self.custom_ra2_var.get(),
+                self.custom_dec2_var.get(),
+                announce=False
+            )
+            bbox_hash = hashlib.sha1(
+                json.dumps(rounded_bbox_for_cache(bbox), sort_keys=True).encode("utf-8")
+            ).hexdigest()[:8]
+            return {
+                "mode": "custom_rectangle",
+                "abbr": f"custom_rectangle_{bbox_hash}",
+                "name": "Custom rectangle from two corner coordinates",
+                "bbox": bbox,
+                "corner_1": {
+                    "ra": self.custom_ra1_var.get().strip(),
+                    "dec": self.custom_dec1_var.get().strip(),
+                },
+                "corner_2": {
+                    "ra": self.custom_ra2_var.get().strip(),
+                    "dec": self.custom_dec2_var.get().strip(),
+                },
+            }
+
+        raise ValueError("No valid search-area selection mode selected.")
+
+    def get_selected_scoring_mode(self):
+        key = self.scoring_var.get()
+
+        if key not in self.scoring_options:
+            raise ValueError("No valid scoring mode selected.")
+
+        selected = dict(self.scoring_options[key])
+        selected.pop("label", None)
+        return selected
+
+    def apply_values_to_globals(self, values):
+        global CELL_SIZE_DEG
+        global STEP_DEG
+        global STAR_MAG_LIMIT
+        global GALAXY_MAG_LIMIT
+        global GALAXY_MIN_SIZE_ARCMIN
+        global MIN_GALAXIES_FOR_PROBOLISM
+        global MIN_STARS_FOR_PROBOLISM
+
+        CELL_SIZE_DEG = values["cell_size"]
+        STEP_DEG = values["step"]
+        STAR_MAG_LIMIT = values["star_mag"]
+        GALAXY_MAG_LIMIT = values["galaxy_mag"]
+        GALAXY_MIN_SIZE_ARCMIN = values["galaxy_size"]
+        MIN_GALAXIES_FOR_PROBOLISM = values["min_galaxies"]
+        MIN_STARS_FOR_PROBOLISM = values["min_stars"]
+
+    def set_controls_state(self, state):
+        for child in self.root.winfo_children():
+            self.set_widget_state_recursive(child, state)
+
+        self.close_button.config(state="normal")
+
+    def set_widget_state_recursive(self, widget, state):
+        try:
+            if widget not in [self.spinner_label, self.status_label]:
+                widget.configure(state=state)
+        except tk.TclError:
+            pass
+
+        for child in widget.winfo_children():
+            self.set_widget_state_recursive(child, state)
+
+    def choose_cache_directory(self):
+        selected = filedialog.askdirectory(
+            title="Choose the folder for saving/loading tiles",
+            initialdir=self.cache_dir_var.get() or DATA_CACHE_DIR
+        )
+
+        if selected:
+            self.cache_dir_var.set(selected)
+
+    def get_cache_options(self):
+        directory = self.cache_dir_var.get().strip() or DATA_CACHE_DIR
+
+        return {
+            "load": bool(self.load_cache_var.get()),
+            "save": bool(self.save_cache_var.get()),
+            "directory": directory,
+        }
+
+    def post_status(self, message):
+        self.root.after(0, lambda: self.status_label.config(text=message))
+
+    def show_help(self):
+        help_window = tk.Toplevel(self.root)
+        help_window.title("User guide — probolisms")
+        help_window.geometry("760x620")
+        help_window.minsize(680, 520)
+
+        frame = ttk.Frame(help_window, padding=10)
+        frame.pack(fill="both", expand=True)
+
+        scrollbar = ttk.Scrollbar(frame)
+        scrollbar.pack(side="right", fill="y")
+
+        text_widget = tk.Text(
+            frame,
+            wrap="word",
+            yscrollcommand=scrollbar.set,
+            font=("Segoe UI", 10)
+        )
+        text_widget.pack(side="left", fill="both", expand=True)
+        scrollbar.config(command=text_widget.yview)
+
+        help_text = """
+Probolizmy_v1.52 — user guide
+
+Program purpose
+---------------
+The program searches for candidates for probolisms: apparent, projected sky-field patterns in which foreground Milky Way stars and background galaxies occur in the same area of the sky. The selected sky area is divided into overlapping fields. In each field the program counts stars and galaxies that meet the selected thresholds.
+
+Astronomical data
+-----------------
+Stars are downloaded from Gaia DR3. Galaxies are downloaded from the RC3 catalog through VizieR. The catalog-query method is unchanged from the previous version: catalogs are queried in tiles to reduce the risk of interrupted requests for large sky areas.
+
+Option #1 — field size
+----------------------
+Sets the angular size of a single field used to test a candidate probolism. Default: 0.3° × 0.3°.
+
+Option #2 — search step
+-----------------------
+Sets the shift between consecutive fields. A smaller step gives a denser and slower search. Default: 0.1°.
+
+Option #3 — star magnitude limit
+--------------------------------
+Sets the Gaia G limit. The program uses stars with G less than or equal to the entered value. Default: G <= 12.0.
+
+Option #4 — galaxy magnitude limit
+----------------------------------
+Sets the RC3 galaxy magnitude limit. The program uses galaxies with magnitude less than or equal to the entered value. Default: mag <= 14.0.
+
+Option #5 — minimum galaxy angular size
+---------------------------------------
+Sets the minimum galaxy size in arcminutes. Default: > 0.8 arcmin. For RC3 galaxies, the program converts this arcminute value to the logarithmic D25 scale used by the RC3 catalog and filters galaxies using the converted D25 threshold.
+
+Option #6 — minimum number of galaxies in a probolism
+-----------------------------------------------------
+A candidate is rejected if it contains fewer galaxies than the entered value. The accepted range is 1...100. Default: 3.
+
+Option #7 — minimum number of stars in a probolism
+--------------------------------------------------
+A candidate is rejected if it contains fewer stars than the entered value. The accepted range is 1...100. Default: 3.
+
+Option #8 — default values
+--------------------------
+This button restores the default values:
+field size 0.3° × 0.3°, step 0.1°, Gaia G <= 12.0, galaxies mag <= 14.0, minimum galaxy size > 0.8 arcmin, at least 3 stars and at least 3 galaxies.
+
+Option #9 — search-area selection
+---------------------------------
+This option has three independent ways to define the sky area searched for probolisms.
+
+1. Constellation or test field:
+select one of the 88 constellations or the test field NGC440 5x5, a 5° × 5° area centered on NGC 4440. For constellation searches, the program uses the Astropy IAU constellation boundaries.
+
+2. Messier object as field center:
+select an object from the Messier catalog from the drop-down list. The selected Messier object is used as the center of a square search field. The field size is selected from a second drop-down list from 2° × 2° to 15° × 15°, in 1° steps.
+
+3. Custom rectangle from two corners:
+enter RA and DEC coordinates of two opposite corners of the rectangular search area. RA may be entered as hour angle, for example 12h30m00s or 12:30:00, or as decimal degrees. DEC may be entered as degrees, for example +12d30m00s, +12:30:00, or 12.5. The program does not allow a resulting search rectangle larger than 15° × 15°.
+
+Option #10 — scoring mode
+-------------------------
+(a) linear version:
+    P_raw  = g_star × g_gal
+    P_norm = (g_star / star_base) × (g_gal / gal_base)
+
+(b) galaxy-square version:
+    P_raw  = g_star × g_gal²
+    P_norm = (g_star / star_base) × (g_gal / gal_base)²
+
+(c) star-and-galaxy-square version:
+    P_raw  = g_star² × g_gal²
+    P_norm = (g_star / star_base)² × (g_gal / gal_base)²
+
+Variables used in the results
+-----------------------------
+g_star is the number of Gaia DR3 stars found in a given field after applying the selected star-magnitude limit.
+
+g_gal is the number of RC3/VizieR galaxies found in a given field after applying the selected galaxy-magnitude limit and minimum galaxy-size limit.
+
+P_raw is the raw probolism score. Its formula depends on the selected scoring mode:
+(a) g_star × g_gal,
+(b) g_star × g_gal²,
+(c) g_star² × g_gal².
+
+P_norm is the normalized probolism score. It compares the number of stars and galaxies in a field with the typical level in the whole searched area:
+star_base is the typical number of stars in fields,
+gal_base is the typical number of galaxies in fields.
+In practice these are medians of the counts; if the median is zero, the program uses the median of positive values.
+
+Candidate classes
+-----------------
+The program assigns class A, B, C, or none.
+
+First, fields with fewer stars than the minimum number of stars in a probolism, or fewer galaxies than the minimum number of galaxies in a probolism, are rejected.
+
+Class A:
+the field has P_norm at or above the 95th percentile, while g_star is at or above the 75th percentile of star counts and g_gal is at or above the 75th percentile of galaxy counts.
+
+Class B:
+the field has P_norm at or above the 90th percentile, while g_star is not lower than star_base and g_gal is not lower than gal_base.
+
+Class C:
+the field has P_norm at or above the 90th percentile, but does not meet the stricter class A or B conditions.
+
+After classification, the program removes repeated candidates: if two candidates share at least two galaxies, only the one with the higher P_norm is kept.
+
+Deduplication and the shorter CSV file
+--------------------------------------
+The full CSV file contains all tested fields, including fields that are not final candidates. The shorter candidates CSV file is created after classification and after duplicate removal.
+
+Duplicate removal is based on the galaxy list in each candidate field. The program sorts candidates by decreasing P_norm. It then scans the list from the highest P_norm downward. A candidate is accepted only if it does not share at least two galaxies with any candidate already accepted. If two or more candidates contain at least two of the same galaxies, only the candidate with the highest P_norm remains in the shorter CSV file.
+
+This rule is needed because neighboring search fields overlap. The same real projected galaxy grouping can therefore appear in several adjacent fields. The shorter CSV file is intended to contain only the strongest representative of such repeated detections.
+
+Catalog tiles — saving and loading
+----------------------------------
+“Save to disk” stores data downloaded from astronomical catalogs in the selected tile folder. “Load from disk” tries to use previously saved data from that folder. You can type the folder path manually or select it with “Choose folder...”. The program checks whether the saved data match the selected area, constellation, and parameters. If the saved data do not match, the program displays an error in the program window and in the terminal, then downloads the data from the internet.
+
+Use catalog tile cache carefully. After changing filtering parameters, cached tiles from earlier runs may still be loaded from disk, so make sure that the selected cache folder and saved tiles are appropriate for the current calculation.
+
+Results
+-------
+The program continues to print detailed messages in the terminal and saves CSV files with the full field table and with the list of probolism candidates.
+
+Authorship
+----------
+© 2026 piotrs. All rights reserved.
+This program was developed by the author with the use of AI tools, including ChatGPT, as support in creating and improving the code.
+"""
+
+        text_widget.insert("1.0", help_text.strip())
+        text_widget.config(state="disabled")
+
+    def start_calculations(self):
+        if self.calculations_running:
+            return
+
+        try:
+            values = self.validate_inputs(show_success=False)
+            selected_region = self.get_selected_region()
+            scoring_mode = self.get_selected_scoring_mode()
+            cache_options = self.get_cache_options()
+            self.apply_values_to_globals(values)
+        except ValueError as e:
+            messagebox.showerror("Data error", str(e))
+            return
+
+        print("\n============================================================")
+        print("USER SELECTION FROM GUI")
+        print("============================================================")
+        print(f"Area: {selected_region['name']} [{selected_region['abbr']}]")
+        print(f"Scoring mode: {scoring_mode['name']}")
+        print(f"Field size: {CELL_SIZE_DEG}° × {CELL_SIZE_DEG}°")
+        print(f"Grid step: {STEP_DEG}°")
+        print(f"Gaia star magnitude limit: G <= {STAR_MAG_LIMIT}")
+        print(f"RC3 galaxy magnitude limit: mag <= {GALAXY_MAG_LIMIT}")
+        print(f"Minimum galaxy size: > {GALAXY_MIN_SIZE_ARCMIN} arcmin")
+        print(f"Minimum number of stars in a candidate: {MIN_STARS_FOR_PROBOLISM}")
+        print(f"Minimum number of galaxies in a candidate: {MIN_GALAXIES_FOR_PROBOLISM}")
+        print(f"Loading tiles from disk: {'yes' if cache_options['load'] else 'no'}")
+        print(f"Saving tiles to disk: {'yes' if cache_options['save'] else 'no'}")
+        print(f"Tiles folder: {cache_options['directory']}")
+
+        self.calculations_running = True
+        self.spinner_index = 0
+        self.status_label.config(text="Calculations are running. Details are printed in the terminal.")
+        self.set_controls_state("disabled")
+        self.update_spinner()
+
+        def worker():
+            errors = []
+            try:
+                analyze(selected_region, scoring_mode, cache_options, self.post_status)
+            except Exception:
+                errors.append(traceback.format_exc())
+
+            self.root.after(0, lambda: self.finish_calculations(errors))
+
+        self.worker_thread = threading.Thread(target=worker, daemon=True)
+        self.worker_thread.start()
+
+    def update_spinner(self):
+        if not self.calculations_running:
+            self.spinner_label.config(text="")
+            return
+
+        frame = self.spinner_frames[self.spinner_index % len(self.spinner_frames)]
+        self.spinner_index += 1
+        self.spinner_label.config(text=f"calculations in progress ... {frame}")
+        self.root.after(150, self.update_spinner)
+
+    def finish_calculations(self, errors):
+        self.calculations_running = False
+        self.spinner_label.config(text="")
+        self.set_controls_state("normal")
+
+        if errors:
+            self.status_label.config(text="An error occurred. Details are in the terminal.")
+            print("\nAN ERROR OCCURRED:")
+            print(errors[0])
+            messagebox.showerror("Error", "An error occurred. Details are printed in the terminal.")
+        else:
+            self.status_label.config(text="Calculations completed. Results were saved to CSV files.")
+            messagebox.showinfo("Done", "Calculations completed. Results were saved to CSV files.")
+
+
+# ============================================================
+# MAIN
+# ============================================================
+
+def main():
+    root = tk.Tk()
+    ProbolismsApp(root)
+    root.mainloop()
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,17 @@
+{
+  "bbox": {
+    "dec_max": 51.5,
+    "dec_min": 3.5,
+    "ra_end": 285.0,
+    "ra_length": 48.0,
+    "ra_start": 237.0
+  },
+  "cache_version": 1,
+  "constellation_filter": "Her",
+  "kind": "stars",
+  "query_tile_size_deg": 5.0,
+  "region_abbr": "Her",
+  "region_mode": "constellation",
+  "region_name": "Hercules",
+  "star_mag_limit": 12.0
+}

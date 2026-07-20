@@ -1,0 +1,17 @@
+{
+  "bbox": {
+    "dec_max": 59.5,
+    "dec_min": 30.5,
+    "ra_end": 73.0,
+    "ra_length": 51.0,
+    "ra_start": 22.0
+  },
+  "cache_version": 1,
+  "constellation_filter": "Per",
+  "kind": "stars",
+  "query_tile_size_deg": 5.0,
+  "region_abbr": "Per",
+  "region_mode": "constellation",
+  "region_name": "Perseus",
+  "star_mag_limit": 12.0
+}
