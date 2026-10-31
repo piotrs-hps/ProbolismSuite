@@ -1,4 +1,4 @@
-# Probolizmy_v1.52.py
+# Probolizmy_v1.54.py
 # pip install numpy pandas astropy astroquery
 
 import math
@@ -2086,9 +2086,9 @@ def choose_scoring_mode():
     print("(b) galaxy-square version:")
     print("    P_raw  = g_star × g_gal²")
     print("    P_norm = (g_star / star_base) × (g_gal / gal_base)²\n")
-    print("(c) star-and-galaxy-square version:")
-    print("    P_raw  = g_star² × g_gal²")
-    print("    P_norm = (g_star / star_base)² × (g_gal / gal_base)²\n")
+    print("(c) star-square version:")
+    print("    P_raw  = g_star² × g_gal")
+    print("    P_norm = (g_star / star_base)² × (g_gal / gal_base)\n")
 
     modes = {
         "a": {
@@ -2104,10 +2104,10 @@ def choose_scoring_mode():
             "gal_power": 2,
         },
         "c": {
-            "id": "star_and_galaxy_square",
-            "name": "star-and-galaxy-square version",
+            "id": "star_square",
+            "name": "star-square version",
             "star_power": 2,
-            "gal_power": 2,
+            "gal_power": 1,
         },
     }
 
@@ -3459,7 +3459,7 @@ def analyze(selected_region, scoring_mode, cache_options=None, status_callback=N
 class ProbolismsApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("Probolizmy_v1.52 — Probolisms by piotrs")
+        self.root.title("Probolizmy_v1.54 — Probolisms by piotrs")
         self.root.geometry("980x720")
         self.root.minsize(900, 660)
 
@@ -3534,11 +3534,11 @@ class ProbolismsApp:
                 "label": "(b) galaxy square: P_raw = g_star × g_gal²",
             },
             "c": {
-                "id": "star_and_galaxy_square",
-                "name": "star-and-galaxy-square version",
+                "id": "star_square",
+                "name": "star-square version",
                 "star_power": 2,
-                "gal_power": 2,
-                "label": "(c) star and galaxy square: P_raw = g_star² × g_gal²",
+                "gal_power": 1,
+                "label": "(c) star square: P_raw = g_star² × g_gal",
             },
         }
 
@@ -3802,9 +3802,9 @@ class ProbolismsApp:
                 "    P_norm = (g_star / star_base) × (g_gal / gal_base)²"
             ),
             "c": (
-                "(c) star-and-galaxy-square version:\n"
-                "    P_raw  = g_star² × g_gal²\n"
-                "    P_norm = (g_star / star_base)² × (g_gal / gal_base)²"
+                "(c) star-square version:\n"
+                "    P_raw  = g_star² × g_gal\n"
+                "    P_norm = (g_star / star_base)² × (g_gal / gal_base)"
             ),
         }
 
@@ -4078,7 +4078,7 @@ class ProbolismsApp:
         scrollbar.config(command=text_widget.yview)
 
         help_text = """
-Probolizmy_v1.52 — user guide
+Probolizmy_v1.54 — user guide
 
 Program purpose
 ---------------
@@ -4144,9 +4144,9 @@ Option #10 — scoring mode
     P_raw  = g_star × g_gal²
     P_norm = (g_star / star_base) × (g_gal / gal_base)²
 
-(c) star-and-galaxy-square version:
-    P_raw  = g_star² × g_gal²
-    P_norm = (g_star / star_base)² × (g_gal / gal_base)²
+(c) star-square version:
+    P_raw  = g_star² × g_gal
+    P_norm = (g_star / star_base)² × (g_gal / gal_base)
 
 Variables used in the results
 -----------------------------
@@ -4157,7 +4157,7 @@ g_gal is the number of RC3/VizieR galaxies found in a given field after applying
 P_raw is the raw probolism score. Its formula depends on the selected scoring mode:
 (a) g_star × g_gal,
 (b) g_star × g_gal²,
-(c) g_star² × g_gal².
+(c) g_star² × g_gal.
 
 P_norm is the normalized probolism score. It compares the number of stars and galaxies in a field with the typical level in the whole searched area:
 star_base is the typical number of stars in fields,

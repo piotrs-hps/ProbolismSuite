@@ -14,8 +14,7 @@ concentration or apparent grouping of stars and galaxies is detected. The term
 The software combines stellar data from the Gaia catalogue with galaxy data
 available through VizieR. It searches selected sky regions, assigns scores to
 candidate fields, saves the results to CSV files, displays astronomical preview
-images, and can send selected coordinates to a Seestar telescope through
-ASCOM Alpaca.
+images, and can send selected coordinates to a Seestar telescope.
 
 Probolism Suite is intended for exploratory astronomy, visual inspection, and
 observation planning. It does not claim that stars and galaxies found in the
